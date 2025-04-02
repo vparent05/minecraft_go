@@ -3,6 +3,7 @@ package player
 import (
 	"math"
 
+	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/vparent05/minecraft_go/internal/movement"
 )
@@ -26,9 +27,37 @@ type player struct {
 	pitch              float32
 }
 
+func (p *player) ProcessInputs(deltaTime float32) {
+	if glfw.GetCurrentContext().GetKey(glfw.KeyEscape) == glfw.Press {
+		glfw.GetCurrentContext().SetShouldClose(true)
+	}
+
+	directions := make([]Direction, 0, 6)
+	if glfw.GetCurrentContext().GetKey(glfw.KeyW) == glfw.Press {
+		directions = append(directions, FRONT)
+	}
+	if glfw.GetCurrentContext().GetKey(glfw.KeyA) == glfw.Press {
+		directions = append(directions, LEFT)
+	}
+	if glfw.GetCurrentContext().GetKey(glfw.KeyS) == glfw.Press {
+		directions = append(directions, BACK)
+	}
+	if glfw.GetCurrentContext().GetKey(glfw.KeyD) == glfw.Press {
+		directions = append(directions, RIGHT)
+	}
+	if glfw.GetCurrentContext().GetKey(glfw.KeySpace) == glfw.Press {
+		directions = append(directions, UP)
+	}
+	if glfw.GetCurrentContext().GetKey(glfw.KeyLeftShift) == glfw.Press {
+		directions = append(directions, DOWN)
+	}
+
+	p.UpdatePosition(directions, deltaTime)
+}
+
 func NewPlayer() player {
 	return player{
-		movement.NewController(mgl32.Vec3{0, 0, 0}, 10, 1),
+		movement.NewController(mgl32.Vec3{0, 0, 0}, 15, 15, 5),
 		[]mgl32.Vec3{{0, 0, 0}},
 		0,
 		0,
@@ -55,7 +84,8 @@ func (p *player) Orientation() mgl32.Vec3 {
 
 func (p *player) UpdatePosition(directions []Direction, deltaTime float32) {
 	direction := mgl32.Vec3{0, 0, 0}
-	for dir := range directions {
+
+	for _, dir := range directions {
 		switch dir {
 		case FRONT:
 			direction = direction.Add(mgl32.Vec3{0, 0, -1})
@@ -76,7 +106,11 @@ func (p *player) UpdatePosition(directions []Direction, deltaTime float32) {
 		direction.Z()*float32(math.Sin(float64(p.yaw))) + direction.X()*float32(math.Cos(float64(p.yaw))),
 		direction.Y(),
 		direction.Z()*float32(math.Cos(float64(p.yaw))) - direction.X()*float32(math.Sin(float64(p.yaw))),
-	}.Normalize()
+	}
+
+	if (direction != mgl32.Vec3{0, 0, 0}) {
+		direction = direction.Normalize()
+	}
 
 	p.movementController.Move(deltaTime, direction)
 }
