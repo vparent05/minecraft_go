@@ -41,7 +41,7 @@ func (c *Controller) Move(deltaTime float32, accelerationDirection mgl32.Vec3) {
 	c.position = c.position.Add(displacement)
 
 	newVelocityVec := accelerationVec.Mul(deltaTime).Add(velocityVec)
-	c.velocity = min(newVelocityVec.Len(), c.maxVelocity)
+	c.velocity = max(min(newVelocityVec.Len(), c.maxVelocity), 0)
 	if newDirection := newVelocityVec; (newDirection != mgl32.Vec3{0, 0, 0}) {
 		c.direction = newDirection.Normalize()
 	} else {

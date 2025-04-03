@@ -56,7 +56,7 @@ func main() {
 	}
 	defer glfw.Terminate()
 
-	window, err := glfw.CreateWindow(500, 500, "Testing", nil, nil)
+	window, err := glfw.CreateWindow(960, 540, "Testing", nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -101,7 +101,7 @@ func main() {
 
 	gl.UseProgram(program)
 
-	proj := mgl32.Perspective(math.Pi/4, 1, 0.1, 100)
+	proj := mgl32.Perspective(math.Pi/4, 16.0/9.0, 0.1, 100)
 	gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("projection\x00")), 1, false, &proj[0])
 
 	player := player.NewPlayer()
