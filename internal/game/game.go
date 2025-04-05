@@ -9,4 +9,5 @@ type Game struct {
 	Player     *player
 	Chunks     []*level.Chunk
 	Projection mgl32.Mat4
+	View       mgl32.Mat4
 }

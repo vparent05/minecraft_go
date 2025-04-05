@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/go-gl/gl/v3.3-core/gl"
-	"github.com/go-gl/mathgl/mgl32"
 	"github.com/vparent05/minecraft_go/internal/game"
 )
 
@@ -76,11 +75,8 @@ func NewChunkRenderer(game *game.Game) (*chunkRenderer, error) {
 
 func (r *chunkRenderer) Draw() {
 	gl.UseProgram(r.program)
-	view := mgl32.LookAtV(r.game.Player.CameraPosition(), r.game.Player.CameraPosition().Add(r.game.Player.Orientation()), mgl32.Vec3{0, 1, 0})
-	gl.UniformMatrix4fv(r.viewLocation, 1, false, &view[0])
-
+	gl.UniformMatrix4fv(r.viewLocation, 1, false, &r.game.View[0])
 	gl.BindVertexArray(r.VAO)
-
 	for i, VBO := range r.VBOs {
 		gl.BindBuffer(gl.ARRAY_BUFFER, VBO)
 		gl.DrawArrays(gl.TRIANGLES, 0, r.vertexCount[i])
