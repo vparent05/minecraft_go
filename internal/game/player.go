@@ -1,4 +1,4 @@
-package player
+package game
 
 import (
 	"math"
@@ -61,8 +61,8 @@ func (p *player) ProcessInputs(deltaTime float32) {
 	p.UpdatePosition(directions, deltaTime)
 }
 
-func NewPlayer() player {
-	return player{
+func NewPlayer() *player {
+	return &player{
 		movement.NewController(mgl32.Vec3{0, 0, 0}, 15, 15, 5),
 		[]mgl32.Vec3{{0, 0, 0}},
 		0,
