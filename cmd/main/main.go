@@ -10,56 +10,8 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/vparent05/minecraft_go/internal/level"
 	"github.com/vparent05/minecraft_go/internal/player"
+	"github.com/vparent05/minecraft_go/internal/shader"
 )
-
-const vertex = `#version 400 core
-layout (location = 0) in int ver;
-
-uniform mat4 view;
-uniform mat4 projection;
-
-flat out int orientation;
-void main()
-{	
-		int x = (ver>>28) & 0xF;
-		int y = (ver>>20) & 0xFF;
-		int z = (ver>>16) & 0xF;
-    vec4 homogeneous = projection * view * vec4(float(x), float(y), float(z), 1.0);
-    gl_Position = homogeneous / homogeneous.w;
-
-		orientation = (ver>>12) & 0xF;
-}` + "\x00"
-
-const fragment = `#version 400 core
-flat in int orientation;
-
-out vec4 FragColor;
-void main()
-{		
-		switch (orientation) {
-		case 0:
-			FragColor = vec4(1, 0, 0, 1);
-			break;
-		case 1:
-			FragColor = vec4(1, 0, 0, 1);
-			break;
-		case 2:
-			FragColor = vec4(0, 0, 1, 1);
-			break;
-		case 3:
-			FragColor = vec4(0, 0, 1, 1);
-			break;
-		case 4:
-			FragColor = vec4(0, 1, 0, 1);
-			break;
-		case 5:
-			FragColor = vec4(0, 1, 0, 1);
-			break;
-		default:
-			FragColor = vec4(1, 1, 1, 1);
-			break;
-		}
-}` + "\x00"
 
 func checkGLError() {
 	for {
@@ -95,22 +47,14 @@ func main() {
 	version := gl.GoStr(gl.GetString(gl.VERSION))
 	fmt.Println("OpenGL version:", version)
 
-	program := gl.CreateProgram()
-	vShader := gl.CreateShader(gl.VERTEX_SHADER)
-	csources, free := gl.Strs(vertex)
-	gl.ShaderSource(vShader, 1, csources, nil)
-	free()
-	gl.CompileShader(vShader)
-	gl.AttachShader(program, vShader)
-	gl.DeleteShader(vShader)
+	program, err := shader.Program(
+		shader.NewShader("./shaders/Vertex.glsl", gl.VERTEX_SHADER),
+		shader.NewShader("./shaders/Fragment.glsl", gl.FRAGMENT_SHADER),
+	)
 
-	fShader := gl.CreateShader(gl.FRAGMENT_SHADER)
-	csources, free = gl.Strs(fragment)
-	gl.ShaderSource(fShader, 1, csources, nil)
-	free()
-	gl.CompileShader(fShader)
-	gl.AttachShader(program, fShader)
-	gl.DeleteShader(fShader)
+	if err != nil {
+		panic(err)
+	}
 
 	gl.LinkProgram(program)
 

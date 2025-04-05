@@ -1,7 +1,30 @@
-#version 330 core
-out vec4 FragColor;
+#version 400 core
+flat in int orientation;
 
+out vec4 FragColor;
 void main()
-{
-    FragColor = vec4(1.0f, 0.5f, 0.2f, 0.5f);
+{		
+		switch (orientation) {
+		case 0:
+			FragColor = vec4(1, 0, 0, 1);
+			break;
+		case 1:
+			FragColor = vec4(1, 0, 0, 1);
+			break;
+		case 2:
+			FragColor = vec4(0, 0, 1, 1);
+			break;
+		case 3:
+			FragColor = vec4(0, 0, 1, 1);
+			break;
+		case 4:
+			FragColor = vec4(0, 1, 0, 1);
+			break;
+		case 5:
+			FragColor = vec4(0, 1, 0, 1);
+			break;
+		default:
+			FragColor = vec4(1, 1, 1, 1);
+			break;
+		}
 }
