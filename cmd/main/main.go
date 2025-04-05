@@ -47,7 +47,7 @@ func main() {
 	checkGLError()
 
 	version := gl.GoStr(gl.GetString(gl.VERSION))
-	fmt.Println("OpenGL version:", version)
+	fmt.Printf("OpenGL version: %s\n", version)
 
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.BLEND)
@@ -75,6 +75,7 @@ func main() {
 			time.Sleep(time.Second / 10)
 		}
 	}()
+
 	for !window.ShouldClose() {
 		currentTime = glfw.GetTime()
 		deltaTime = currentTime - lastFrame

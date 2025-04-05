@@ -14,7 +14,7 @@ type chunkRenderer struct {
 	viewLocation int32
 	VAO          uint32
 	VBOs         []uint32
-	vboLength    []int32
+	vertexCount  []int32
 }
 
 func NewChunkRenderer(game *game.Game) (*chunkRenderer, error) {
@@ -83,6 +83,15 @@ func (r *chunkRenderer) Draw() {
 
 	for i, VBO := range r.VBOs {
 		gl.BindBuffer(gl.ARRAY_BUFFER, VBO)
-		gl.DrawArrays(gl.TRIANGLES, 0, r.vboLength[i])
+		gl.DrawArrays(gl.TRIANGLES, 0, r.vertexCount[i])
 	}
+}
+
+func (r *chunkRenderer) UpdateVBO(index int) {
+	gl.BindBuffer(gl.ARRAY_BUFFER, r.VBOs[index])
+	vertices := r.game.Chunks[index].SolidMesh()
+
+	r.vertexCount[index] = int32(len(vertices))
+	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
+	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
 }
