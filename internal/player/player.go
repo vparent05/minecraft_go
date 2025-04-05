@@ -25,6 +25,7 @@ type player struct {
 	selectedCamera     int
 	yaw                float32
 	pitch              float32
+	maxPitch           float32
 }
 
 func (p *player) ProcessInputs(deltaTime float32) {
@@ -52,6 +53,11 @@ func (p *player) ProcessInputs(deltaTime float32) {
 		directions = append(directions, DOWN)
 	}
 
+	width, height := glfw.GetCurrentContext().GetSize()
+	xpos, ypos := glfw.GetCurrentContext().GetCursorPos()
+	glfw.GetCurrentContext().SetCursorPos(float64(width)/2, float64(height)/2)
+
+	p.UpdateOrientation(mgl32.Vec2{(float32(width/2) - float32(xpos)) / 1000, (float32(height)/2 - float32(ypos)) / 1000})
 	p.UpdatePosition(directions, deltaTime)
 }
 
@@ -62,6 +68,7 @@ func NewPlayer() player {
 		0,
 		0,
 		0,
+		math.Pi / 4,
 	}
 }
 
@@ -77,7 +84,7 @@ func (p *player) Orientation() mgl32.Vec3 {
 	orientation := mgl32.Vec3{0, 0, -1}
 
 	matrix := mgl32.Rotate3DY(p.yaw)
-	matrix = mgl32.HomogRotate3D(p.pitch, matrix.Mul3x1(mgl32.Vec3{1, 0, 0})).Mat3()
+	matrix = matrix.Mul3(mgl32.Rotate3DX(p.pitch))
 
 	return matrix.Mul3x1(orientation)
 }
@@ -113,4 +120,9 @@ func (p *player) UpdatePosition(directions []Direction, deltaTime float32) {
 	}
 
 	p.movementController.Move(deltaTime, direction)
+}
+
+func (p *player) UpdateOrientation(mouseDisplacementRad mgl32.Vec2) {
+	p.yaw = float32(math.Mod(float64(p.yaw+mouseDisplacementRad.X()), math.Pi*2))
+	p.pitch = max(min(p.pitch+mouseDisplacementRad.Y(), p.maxPitch), -p.maxPitch)
 }

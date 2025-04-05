@@ -12,27 +12,53 @@ import (
 	"github.com/vparent05/minecraft_go/internal/player"
 )
 
-const vertex = `#version 330 core
+const vertex = `#version 400 core
 layout (location = 0) in int ver;
 
 uniform mat4 view;
 uniform mat4 projection;
 
+flat out int orientation;
 void main()
 {	
 		int x = (ver>>28) & 0xF;
 		int y = (ver>>20) & 0xFF;
 		int z = (ver>>16) & 0xF;
-    vec4 homogeneous = projection * view * vec4(float(x), float(y), float(-z), 1.0);
+    vec4 homogeneous = projection * view * vec4(float(x), float(y), float(z), 1.0);
     gl_Position = homogeneous / homogeneous.w;
+
+		orientation = (ver>>12) & 0xF;
 }` + "\x00"
 
-const fragment = `#version 330 core
-out vec4 FragColor;
+const fragment = `#version 400 core
+flat in int orientation;
 
+out vec4 FragColor;
 void main()
-{
-    FragColor = vec4(1.0f, 0.5f, 0.2f, 0.5f);
+{		
+		switch (orientation) {
+		case 0:
+			FragColor = vec4(1, 0, 0, 1);
+			break;
+		case 1:
+			FragColor = vec4(1, 0, 0, 1);
+			break;
+		case 2:
+			FragColor = vec4(0, 0, 1, 1);
+			break;
+		case 3:
+			FragColor = vec4(0, 0, 1, 1);
+			break;
+		case 4:
+			FragColor = vec4(0, 1, 0, 1);
+			break;
+		case 5:
+			FragColor = vec4(0, 1, 0, 1);
+			break;
+		default:
+			FragColor = vec4(1, 1, 1, 1);
+			break;
+		}
 }` + "\x00"
 
 func checkGLError() {
@@ -66,6 +92,8 @@ func main() {
 	if err := gl.Init(); err != nil {
 		panic(err)
 	}
+	version := gl.GoStr(gl.GetString(gl.VERSION))
+	fmt.Println("OpenGL version:", version)
 
 	program := gl.CreateProgram()
 	vShader := gl.CreateShader(gl.VERTEX_SHADER)
@@ -96,8 +124,12 @@ func main() {
 	gl.VertexAttribIPointer(0, 1, gl.INT, 4, nil)
 	gl.EnableVertexAttribArray(0)
 
+	gl.Enable(gl.DEPTH_TEST)
+
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+
+	gl.Enable(gl.CULL_FACE)
 
 	gl.UseProgram(program)
 
@@ -112,15 +144,15 @@ func main() {
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 
 	var view mgl32.Mat4
-	lastFrame := float32(glfw.GetTime())
-	var deltaTime float32
-	var currentTime float32
+	lastFrame := glfw.GetTime()
+	var deltaTime float64
+	var currentTime float64
 	for !window.ShouldClose() {
-		currentTime = float32(glfw.GetTime())
+		currentTime = glfw.GetTime()
 		deltaTime = currentTime - lastFrame
 		lastFrame = currentTime
 
-		gl.Clear(gl.COLOR_BUFFER_BIT)
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 		gl.UseProgram(program)
 		view = mgl32.LookAtV(player.CameraPosition(), player.CameraPosition().Add(player.Orientation()), mgl32.Vec3{0, 1, 0})
@@ -131,7 +163,7 @@ func main() {
 
 		window.SwapBuffers()
 		glfw.PollEvents()
-		player.ProcessInputs(deltaTime)
+		player.ProcessInputs(float32(deltaTime))
 		checkGLError()
 	}
 }
