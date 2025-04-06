@@ -11,7 +11,6 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/vparent05/minecraft_go/internal/game"
 	"github.com/vparent05/minecraft_go/internal/graphics"
-	"github.com/vparent05/minecraft_go/internal/level"
 )
 
 func checkGLError() {
@@ -56,7 +55,7 @@ func main() {
 
 	game := &game.Game{
 		Player:     game.NewPlayer(),
-		Chunks:     []*level.Chunk{level.GetTestChunk()},
+		Chunks:     []*game.Chunk{game.GetTestChunk()},
 		Projection: mgl32.Perspective(math.Pi/4, 16.0/9.0, 0.1, 100),
 	}
 

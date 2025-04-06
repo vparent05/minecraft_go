@@ -1,4 +1,4 @@
-package level
+package game
 
 import (
 	"github.com/go-gl/mathgl/mgl32"

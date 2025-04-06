@@ -2,12 +2,11 @@ package game
 
 import (
 	"github.com/go-gl/mathgl/mgl32"
-	"github.com/vparent05/minecraft_go/internal/level"
 )
 
 type Game struct {
 	Player     *player
-	Chunks     []*level.Chunk
+	Chunks     []*Chunk
 	Projection mgl32.Mat4
 	View       mgl32.Mat4
 }
