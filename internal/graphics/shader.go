@@ -33,38 +33,38 @@ func readSource(path string) (string, error) {
 	return string(data), nil
 }
 
-func newShader(shader Shader) (uint32, error) {
-	s := gl.CreateShader(shader.xtype)
-	source, err := readSource(shader.sourcePath)
+func (s *Shader) compile() (uint32, error) {
+	shader := gl.CreateShader(s.xtype)
+	source, err := readSource(s.sourcePath)
 	if err != nil {
 		return 0, fmt.Errorf("readSource(): %w", err)
 	}
 	cSource, free := gl.Strs(source + "\x00")
-	gl.ShaderSource(s, 1, cSource, nil)
+	gl.ShaderSource(shader, 1, cSource, nil)
 	free()
-	gl.CompileShader(s)
+	gl.CompileShader(shader)
 
 	var isCompiled int32
-	gl.GetShaderiv(s, gl.COMPILE_STATUS, &isCompiled)
+	gl.GetShaderiv(shader, gl.COMPILE_STATUS, &isCompiled)
 	if isCompiled == gl.FALSE {
 		var length int32
-		gl.GetShaderiv(s, gl.INFO_LOG_LENGTH, &length)
+		gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, &length)
 
 		log := make([]uint8, length)
-		gl.GetShaderInfoLog(s, length, &length, &log[0])
+		gl.GetShaderInfoLog(shader, length, &length, &log[0])
 
 		return 0, fmt.Errorf("gl.CompileShader(): %s", string(log))
 	}
 
-	return s, nil
+	return shader, nil
 }
 
-func NewProgram(id int, shaders ...Shader) error {
+func NewProgram(id int, shaders ...Shader) (uint32, error) {
 	program := gl.CreateProgram()
 	for _, s := range shaders {
-		sh, err := newShader(s)
+		sh, err := s.compile()
 		if err != nil {
-			return fmt.Errorf("newShader(): %w", err)
+			return 0, fmt.Errorf("newShader(): %w", err)
 		}
 		gl.AttachShader(program, sh)
 		gl.DeleteShader(sh)
@@ -72,7 +72,7 @@ func NewProgram(id int, shaders ...Shader) error {
 	gl.LinkProgram(program)
 
 	programs[id] = program
-	return nil
+	return program, nil
 }
 
 func SelectProgram(id Program) (uint32, error) {

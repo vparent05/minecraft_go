@@ -22,7 +22,7 @@ func NewChunkRenderer(game *game.Game) (*chunkRenderer, error) {
 	}
 
 	// create the block shader program
-	err := NewProgram(
+	blockProgram, err := NewProgram(
 		BLOCK,
 		NewShader("./shaders/block/Vertex.glsl", gl.VERTEX_SHADER),
 		NewShader("./shaders/block/Fragment.glsl", gl.FRAGMENT_SHADER),
@@ -55,11 +55,7 @@ func NewChunkRenderer(game *game.Game) (*chunkRenderer, error) {
 	// unbind buffer
 	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
 
-	blockProgram, err := SelectProgram(BLOCK)
-	if err != nil {
-		return nil, fmt.Errorf("SelectProgram(): %w", err)
-	}
-
+	gl.UseProgram(blockProgram)
 	gl.UniformMatrix4fv(gl.GetUniformLocation(blockProgram, gl.Str("projection\x00")), 1, false, &game.Projection[0])
 	viewLocation := gl.GetUniformLocation(blockProgram, gl.Str("view\x00"))
 
