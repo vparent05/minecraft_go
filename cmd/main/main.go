@@ -84,7 +84,10 @@ func main() {
 
 		game.View = mgl32.LookAtV(game.Player.CameraPosition(), game.Player.CameraPosition().Add(game.Player.Orientation()), mgl32.Vec3{0, 1, 0})
 
-		chunkRenderer.Draw()
+		err = chunkRenderer.Draw()
+		if err != nil {
+			panic(fmt.Errorf("Draw(): %w", err))
+		}
 
 		window.SwapBuffers()
 		glfw.PollEvents()

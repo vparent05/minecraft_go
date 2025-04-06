@@ -8,12 +8,11 @@ import (
 )
 
 type chunkRenderer struct {
-	game         *game.Game
-	program      uint32
-	viewLocation int32
-	VAO          uint32
-	VBOs         []uint32
-	vertexCount  []int32
+	game        *game.Game
+	program     *program
+	VAO         uint32
+	VBOs        []uint32
+	vertexCount []int32
 }
 
 func NewChunkRenderer(game *game.Game) (*chunkRenderer, error) {
@@ -23,7 +22,6 @@ func NewChunkRenderer(game *game.Game) (*chunkRenderer, error) {
 
 	// create the block shader program
 	blockProgram, err := NewProgram(
-		BLOCK,
 		NewShader("./shaders/block/Vertex.glsl", gl.VERTEX_SHADER),
 		NewShader("./shaders/block/Fragment.glsl", gl.FRAGMENT_SHADER),
 	)
@@ -52,31 +50,35 @@ func NewChunkRenderer(game *game.Game) (*chunkRenderer, error) {
 	gl.VertexAttribIPointer(0, 1, gl.INT, 4, nil)
 	gl.EnableVertexAttribArray(0)
 
-	// unbind buffer
-	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
-
-	gl.UseProgram(blockProgram)
-	gl.UniformMatrix4fv(gl.GetUniformLocation(blockProgram, gl.Str("projection\x00")), 1, false, &game.Projection[0])
-	viewLocation := gl.GetUniformLocation(blockProgram, gl.Str("view\x00"))
+	blockProgram.use()
+	projectionLocation, err := blockProgram.getUniformLocation("projection")
+	if err != nil {
+		return nil, fmt.Errorf("getUniformLocation(): %w", err)
+	}
+	gl.UniformMatrix4fv(projectionLocation, 1, false, &game.Projection[0])
 
 	return &chunkRenderer{
 		game,
 		blockProgram,
-		viewLocation,
 		VAO,
 		VBOs,
 		vertexCount,
 	}, nil
 }
 
-func (r *chunkRenderer) Draw() {
-	gl.UseProgram(r.program)
-	gl.UniformMatrix4fv(r.viewLocation, 1, false, &r.game.View[0])
+func (r *chunkRenderer) Draw() error {
+	r.program.use()
+	viewLocation, err := r.program.getUniformLocation("view")
+	if err != nil {
+		return fmt.Errorf("getUniformLocation(): %w", err)
+	}
+	gl.UniformMatrix4fv(viewLocation, 1, false, &r.game.View[0])
 	gl.BindVertexArray(r.VAO)
 	for i, VBO := range r.VBOs {
 		gl.BindBuffer(gl.ARRAY_BUFFER, VBO)
 		gl.DrawArrays(gl.TRIANGLES, 0, r.vertexCount[i])
 	}
+	return nil
 }
 
 func (r *chunkRenderer) UpdateVBO(index int) {
@@ -85,5 +87,4 @@ func (r *chunkRenderer) UpdateVBO(index int) {
 
 	r.vertexCount[index] = int32(len(vertices))
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
-	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
 }

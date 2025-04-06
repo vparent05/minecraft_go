@@ -7,14 +7,10 @@ import (
 	"github.com/go-gl/gl/v4.5-core/gl"
 )
 
-var programs = map[Program]uint32{}
-
-type Program = int
-
-const (
-	BLOCK  Program = iota
-	SKYBOX Program = iota
-)
+type program struct {
+	id              uint32
+	uniformLocation map[string]int32
+}
 
 type Shader struct {
 	sourcePath string
@@ -59,27 +55,35 @@ func (s *Shader) compile() (uint32, error) {
 	return shader, nil
 }
 
-func NewProgram(id int, shaders ...Shader) (uint32, error) {
-	program := gl.CreateProgram()
+func NewProgram(shaders ...Shader) (*program, error) {
+	p := gl.CreateProgram()
 	for _, s := range shaders {
 		sh, err := s.compile()
 		if err != nil {
-			return 0, fmt.Errorf("newShader(): %w", err)
+			return nil, fmt.Errorf("newShader(): %w", err)
 		}
-		gl.AttachShader(program, sh)
+		gl.AttachShader(p, sh)
 		gl.DeleteShader(sh)
 	}
-	gl.LinkProgram(program)
+	gl.LinkProgram(p)
 
-	programs[id] = program
-	return program, nil
+	return &program{
+		p,
+		make(map[string]int32),
+	}, nil
 }
 
-func SelectProgram(id Program) (uint32, error) {
-	program, ok := programs[id]
-	if !ok {
-		return 0, fmt.Errorf("program %v doesn't exist", id)
+func (p *program) use() {
+	gl.UseProgram(p.id)
+}
+
+func (p *program) getUniformLocation(name string) (int32, error) {
+	if location, ok := p.uniformLocation[name]; ok {
+		return location, nil
 	}
-	gl.UseProgram(program)
-	return program, nil
+	location := gl.GetUniformLocation(p.id, gl.Str(name+"\x00"))
+	if location == -1 {
+		return -1, fmt.Errorf("gl.GetUniformLocation(): uniform \"%s\" doesn't exist", name)
+	}
+	return location, nil
 }
