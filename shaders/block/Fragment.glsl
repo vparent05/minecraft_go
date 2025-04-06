@@ -1,4 +1,4 @@
-#version 400 core
+#version 460 core
 flat in int orientation;
 
 out vec4 FragColor;

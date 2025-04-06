@@ -3,7 +3,7 @@ package graphics
 import (
 	"fmt"
 
-	"github.com/go-gl/gl/v3.3-core/gl"
+	"github.com/go-gl/gl/v4.6-core/gl"
 	"github.com/vparent05/minecraft_go/internal/game"
 )
 

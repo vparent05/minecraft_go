@@ -1,4 +1,4 @@
-#version 400 core
+#version 460 core
 layout (location = 0) in int ver;
 
 uniform mat4 view;

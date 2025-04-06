@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/go-gl/gl/v4.5-core/gl"
+	"github.com/go-gl/gl/v4.6-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/vparent05/minecraft_go/internal/game"
@@ -64,6 +64,11 @@ func main() {
 		panic(fmt.Errorf("graphics.NewChunkRenderer(): %w", err))
 	}
 
+	skyboxRenderer, err := graphics.NewSkyboxRenderer(game)
+	if err != nil {
+		panic(fmt.Errorf("graphics.NewSkyboxRenderer(): %w", err))
+	}
+
 	lastFrame := glfw.GetTime()
 	var deltaTime float64
 	var currentTime float64
@@ -85,6 +90,11 @@ func main() {
 		game.View = mgl32.LookAtV(game.Player.CameraPosition(), game.Player.CameraPosition().Add(game.Player.Orientation()), mgl32.Vec3{0, 1, 0})
 
 		err = chunkRenderer.Draw()
+		if err != nil {
+			panic(fmt.Errorf("Draw(): %w", err))
+		}
+
+		err = skyboxRenderer.Draw()
 		if err != nil {
 			panic(fmt.Errorf("Draw(): %w", err))
 		}
