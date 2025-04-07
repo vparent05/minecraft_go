@@ -34,7 +34,7 @@ func main() {
 	}
 	defer glfw.Terminate()
 
-	window, err := glfw.CreateWindow(960, 540, "Testing", nil, nil)
+	window, err := glfw.CreateWindow(1440, 810, "Testing", nil, nil)
 	if err != nil {
 		panic(fmt.Errorf("glfw.CreateWindow(): %w", err))
 	}

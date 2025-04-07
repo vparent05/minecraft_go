@@ -1,12 +1,13 @@
-#version 400 core
+#version 460 core
 
-layout (location = 0) in Vec3 position;
-layout (location = 1) in Vec2 uv_v;
+layout (location = 0) in vec3 position;
 
+uniform mat4 view;
 uniform mat4 projection;
 
-out Vec2 uv_f;
+out vec3 textureCoordinates;
 void main() {	
-	gl_Position = projection * vec4(position, 1.0);
-	uv_f = uv_v;
+	textureCoordinates = position;
+	vec4 pos = projection * view * vec4(position, 1.0);
+	gl_Position = pos.xyww;
 }

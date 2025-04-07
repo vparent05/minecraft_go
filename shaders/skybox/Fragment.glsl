@@ -1,9 +1,14 @@
-#version 400 core
-in Vec2 uv_f;
+#version 460 core
 
-uniform sampler2D img2DSampler;
+in vec3 textureCoordinates;
+
+uniform samplerCube constellation;
+uniform samplerCube skybox;
 
 out vec4 FragColor;
-void main() {		
-	FragColor = texture(img2DSampler, uv_f);
+void main() {	
+	vec4 col1 = texture(constellation, textureCoordinates);
+	vec4 col2 = texture(skybox, textureCoordinates);
+
+	FragColor = col1 * 0.2 + col2;
 }
