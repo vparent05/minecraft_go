@@ -63,24 +63,12 @@ func NewSkyboxRenderer(game *game.Game) (*skyboxRenderer, error) {
 	}
 
 	err := loadCubemap([]string{
-		"./textures/constellation/right.png",
-		"./textures/constellation/left.png",
-		"./textures/constellation/top.png",
-		"./textures/constellation/bottom.png",
-		"./textures/constellation/front.png",
-		"./textures/constellation/back.png",
-	}, false)
-	if err != nil {
-		return nil, fmt.Errorf("loadCubemap(): %w", err)
-	}
-
-	err = loadCubemap([]string{
-		"./textures/skybox/right.jpg",
-		"./textures/skybox/left.jpg",
-		"./textures/skybox/top.jpg",
-		"./textures/skybox/bottom.jpg",
-		"./textures/skybox/front.jpg",
-		"./textures/skybox/back.jpg",
+		"./textures/skybox/right.png",
+		"./textures/skybox/left.png",
+		"./textures/skybox/top.png",
+		"./textures/skybox/bottom.png",
+		"./textures/skybox/front.png",
+		"./textures/skybox/back.png",
 	}, true)
 	if err != nil {
 		return nil, fmt.Errorf("loadCubemap(): %w", err)
@@ -122,12 +110,6 @@ func NewSkyboxRenderer(game *game.Game) (*skyboxRenderer, error) {
 	}
 	gl.Uniform1i(skyboxLocation, SKYBOX_TEXTURE)
 
-	constellLocation, err := skyboxProgram.getUniformLocation("constellation")
-	if err != nil {
-		return nil, fmt.Errorf("getUniformLocation(): %w", err)
-	}
-	gl.Uniform1i(constellLocation, CONSTELLATION_TEXTURE)
-
 	return &skyboxRenderer{
 		game,
 		skyboxProgram,
@@ -137,14 +119,14 @@ func NewSkyboxRenderer(game *game.Game) (*skyboxRenderer, error) {
 
 func (r *skyboxRenderer) Draw() error {
 	r.program.use()
-	gl.DepthFunc(gl.LEQUAL)
-
 	viewLocation, err := r.program.getUniformLocation("view")
 	if err != nil {
 		return fmt.Errorf("getUniformLocation(): %w", err)
 	}
 	rotationOnlyView := r.game.View.Mat3().Mat4()
 	gl.UniformMatrix4fv(viewLocation, 1, false, &rotationOnlyView[0])
+
+	gl.DepthFunc(gl.LEQUAL)
 	gl.BindVertexArray(r.VAO)
 	gl.DrawArrays(gl.TRIANGLES, 0, 36)
 	gl.DepthFunc(gl.LESS)

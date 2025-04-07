@@ -16,10 +16,10 @@ const (
 	CONSTELLATION_TEXTURE = 1
 )
 
-func createTexture(unit uint32) uint32 {
+func createTexture(offset uint32) uint32 {
 	var texture uint32
 	gl.GenTextures(1, &texture)
-	gl.ActiveTexture(gl.TEXTURE0 + unit)
+	gl.ActiveTexture(gl.TEXTURE0 + offset)
 	gl.BindTexture(gl.TEXTURE_CUBE_MAP, texture)
 	return texture
 }
