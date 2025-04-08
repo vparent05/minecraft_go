@@ -1,6 +1,7 @@
 package graphics
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/go-gl/gl/v4.6-core/gl"
@@ -16,7 +17,12 @@ type chunkRenderer struct {
 }
 
 func NewChunkRenderer(game *game.Game) (*chunkRenderer, error) {
-	if err := gl.Init(); err != nil {
+	if game == nil {
+		return nil, errors.New("game pointer is nil")
+	}
+
+	err := gl.Init()
+	if err != nil {
 		return nil, fmt.Errorf("gl.Init(): %w", err)
 	}
 

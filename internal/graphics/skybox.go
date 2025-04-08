@@ -1,6 +1,7 @@
 package graphics
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/go-gl/gl/v4.6-core/gl"
@@ -58,18 +59,16 @@ type skyboxRenderer struct {
 }
 
 func NewSkyboxRenderer(game *game.Game) (*skyboxRenderer, error) {
-	if err := gl.Init(); err != nil {
+	if game == nil {
+		return nil, errors.New("game pointer is nil")
+	}
+
+	err := gl.Init()
+	if err != nil {
 		return nil, fmt.Errorf("gl.Init(): %w", err)
 	}
 
-	err := loadCubemap([]string{
-		"./textures/skybox/right.png",
-		"./textures/skybox/left.png",
-		"./textures/skybox/top.png",
-		"./textures/skybox/bottom.png",
-		"./textures/skybox/front.png",
-		"./textures/skybox/back.png",
-	}, true)
+	err = loadCubemap("./textures/skybox", "png", SKYBOX_TEXTURE)
 	if err != nil {
 		return nil, fmt.Errorf("loadCubemap(): %w", err)
 	}

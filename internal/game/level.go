@@ -9,6 +9,13 @@ type block struct {
 	visible bool
 }
 
+type Chunk struct {
+	position mgl32.Vec2
+	blocks   [65536]block // 16 * 256 * 16, index = x * 4096 + y * 16 + z
+
+	solidMesh []uint32
+}
+
 func (b *block) mesh(x, y, z int) []uint32 {
 	id := int(b.id << 4)
 
@@ -80,13 +87,6 @@ func (b *block) mesh(x, y, z int) []uint32 {
 		vB1, vB2, vB3,
 		vC1, vC2, vC3,
 	}
-}
-
-type Chunk struct {
-	position mgl32.Vec2
-	blocks   [65536]block // 16 * 256 * 16, index = x * 4096 + y * 16 + z
-
-	solidMesh []uint32
 }
 
 func (c *Chunk) generateMesh() {
