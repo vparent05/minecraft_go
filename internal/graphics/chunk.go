@@ -68,6 +68,8 @@ func NewChunkRenderer(game *p_game.Game) (*chunkRenderer, error) {
 }
 
 func (r *chunkRenderer) UpdateVBOs() error {
+	gl.BindVertexArray(r.VAO)
+
 	// create vertex buffer objects
 	chunkCount := int32(len(r.game.Chunks))
 
@@ -102,6 +104,7 @@ func (r *chunkRenderer) UpdateVBOs() error {
 }
 
 func (r *chunkRenderer) UpdateVBO(index int) {
+	gl.BindVertexArray(r.VAO)
 	gl.BindBuffer(gl.ARRAY_BUFFER, r.VBOs[index])
 	vertices := r.game.Chunks[index].SolidMesh()
 
