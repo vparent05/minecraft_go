@@ -5,18 +5,18 @@ import (
 	"fmt"
 
 	"github.com/go-gl/gl/v4.6-core/gl"
-	"github.com/vparent05/minecraft_go/internal/game"
+	p_game "github.com/vparent05/minecraft_go/internal/game"
 )
 
 type chunkRenderer struct {
-	game        *game.Game
+	game        *p_game.Game
 	program     *program
 	VAO         uint32
 	VBOs        []uint32
 	vertexCount []int32
 }
 
-func NewChunkRenderer(game *game.Game) (*chunkRenderer, error) {
+func NewChunkRenderer(game *p_game.Game) (*chunkRenderer, error) {
 	if game == nil {
 		return nil, errors.New("game pointer is nil")
 	}
@@ -24,6 +24,11 @@ func NewChunkRenderer(game *game.Game) (*chunkRenderer, error) {
 	err := gl.Init()
 	if err != nil {
 		return nil, fmt.Errorf("gl.Init(): %w", err)
+	}
+
+	p_game.BLOCK_TEXTURE_ATLAS, err = loadTextureAtlas("./textures/blocks", BLOCKS_TEXTURE, 16)
+	if err != nil {
+		return nil, fmt.Errorf("loadTextureAtlas(): %w", err)
 	}
 
 	// create the block shader program
@@ -40,14 +45,48 @@ func NewChunkRenderer(game *game.Game) (*chunkRenderer, error) {
 	gl.GenVertexArrays(1, &VAO)
 	gl.BindVertexArray(VAO)
 
+	blockProgram.use()
+	projectionLocation, err := blockProgram.getUniformLocation("projection")
+	if err != nil {
+		return nil, fmt.Errorf("getUniformLocation(): %w", err)
+	}
+	gl.UniformMatrix4fv(projectionLocation, 1, false, &game.Projection[0])
+
+	textureLocation, err := blockProgram.getUniformLocation("atlas")
+	if err != nil {
+		return nil, fmt.Errorf("getUniformLocation(): %w", err)
+	}
+	gl.Uniform1i(textureLocation, BLOCKS_TEXTURE)
+
+	return &chunkRenderer{
+		game,
+		blockProgram,
+		VAO,
+		[]uint32{},
+		[]int32{},
+	}, nil
+}
+
+func (r *chunkRenderer) UpdateVBOs() error {
 	// create vertex buffer objects
-	chunkCount := int32(len(game.Chunks))
+	chunkCount := int32(len(r.game.Chunks))
+
+	if len(r.VBOs) > 0 {
+		gl.DeleteBuffers(int32(len(r.VBOs)), &r.VBOs[0])
+	}
+
+	if chunkCount == 0 {
+		r.VBOs = []uint32{}
+		r.vertexCount = []int32{}
+		return nil
+	}
+
 	vertexCount := make([]int32, chunkCount)
 	VBOs := make([]uint32, chunkCount)
 	gl.GenBuffers(chunkCount, &VBOs[0])
 	for i := range chunkCount {
 		gl.BindBuffer(gl.ARRAY_BUFFER, VBOs[i])
-		vertices := game.Chunks[i].SolidMesh()
+		vertices := r.game.Chunks[i].SolidMesh()
 
 		vertexCount[i] = int32(len(vertices))
 		gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
@@ -56,20 +95,18 @@ func NewChunkRenderer(game *game.Game) (*chunkRenderer, error) {
 	gl.VertexAttribIPointer(0, 1, gl.INT, 4, nil)
 	gl.EnableVertexAttribArray(0)
 
-	blockProgram.use()
-	projectionLocation, err := blockProgram.getUniformLocation("projection")
-	if err != nil {
-		return nil, fmt.Errorf("getUniformLocation(): %w", err)
-	}
-	gl.UniformMatrix4fv(projectionLocation, 1, false, &game.Projection[0])
+	r.VBOs = VBOs
+	r.vertexCount = vertexCount
 
-	return &chunkRenderer{
-		game,
-		blockProgram,
-		VAO,
-		VBOs,
-		vertexCount,
-	}, nil
+	return nil
+}
+
+func (r *chunkRenderer) UpdateVBO(index int) {
+	gl.BindBuffer(gl.ARRAY_BUFFER, r.VBOs[index])
+	vertices := r.game.Chunks[index].SolidMesh()
+
+	r.vertexCount[index] = int32(len(vertices))
+	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 }
 
 func (r *chunkRenderer) Draw() error {
@@ -85,12 +122,4 @@ func (r *chunkRenderer) Draw() error {
 		gl.DrawArrays(gl.TRIANGLES, 0, r.vertexCount[i])
 	}
 	return nil
-}
-
-func (r *chunkRenderer) UpdateVBO(index int) {
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.VBOs[index])
-	vertices := r.game.Chunks[index].SolidMesh()
-
-	r.vertexCount[index] = int32(len(vertices))
-	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 }

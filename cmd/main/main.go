@@ -9,7 +9,7 @@ import (
 	"github.com/go-gl/gl/v4.6-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
-	"github.com/vparent05/minecraft_go/internal/game"
+	p_game "github.com/vparent05/minecraft_go/internal/game"
 	"github.com/vparent05/minecraft_go/internal/graphics"
 )
 
@@ -53,9 +53,9 @@ func main() {
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 	gl.Enable(gl.CULL_FACE)
 
-	game := &game.Game{
-		Player:     game.NewPlayer(),
-		Chunks:     []*game.Chunk{game.GetTestChunk()},
+	game := &p_game.Game{
+		Player:     p_game.NewPlayer(),
+		Chunks:     []*p_game.Chunk{},
 		Projection: mgl32.Perspective(math.Pi/4, 16.0/9.0, 0.1, 100),
 	}
 
@@ -67,6 +67,14 @@ func main() {
 	skyboxRenderer, err := graphics.NewSkyboxRenderer(game)
 	if err != nil {
 		panic(fmt.Errorf("graphics.NewSkyboxRenderer(): %w", err))
+	}
+
+	p_game.LoadBlocks()
+
+	game.Chunks = append(game.Chunks, p_game.GetTestChunk())
+	err = chunkRenderer.UpdateVBOs()
+	if err != nil {
+		panic(fmt.Errorf("UpdateVBOs(): %w", err))
 	}
 
 	lastFrame := glfw.GetTime()

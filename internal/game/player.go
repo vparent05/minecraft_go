@@ -68,7 +68,7 @@ func NewPlayer() *player {
 		0,
 		0,
 		0,
-		math.Pi / 3,
+		4 * math.Pi / 9,
 	}
 }
 

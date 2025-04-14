@@ -68,7 +68,7 @@ func NewSkyboxRenderer(game *game.Game) (*skyboxRenderer, error) {
 		return nil, fmt.Errorf("gl.Init(): %w", err)
 	}
 
-	err = loadCubemap("./textures/skybox", "png", SKYBOX_TEXTURE)
+	err = loadCubemap("./textures/skybox", SKYBOX_TEXTURE)
 	if err != nil {
 		return nil, fmt.Errorf("loadCubemap(): %w", err)
 	}
