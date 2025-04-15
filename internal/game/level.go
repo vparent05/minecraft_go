@@ -34,12 +34,15 @@ func (c *Chunk) generateMesh() {
 		z := (i % 16) & 0xf
 
 		render := [6]bool{
+			// (middle AND visible) OR edge
 			i+16 < 65536 && visible(c.blocks[i+16].id, b.id) || i+16 >= 65536,
 			i-16 >= 0 && visible(c.blocks[i-16].id, b.id) || i-16 < 0,
-			i-4096 >= 0 && visible(c.blocks[i-4096].id, b.id) || i-4096 < 0,
-			i+4096 < 65536 && visible(c.blocks[i+4096].id, b.id) || i+4096 >= 65536,
-			i+1 < 65536 && visible(c.blocks[i+1].id, b.id) || i+1 >= 65536,
-			i-1 >= 0 && visible(c.blocks[i-1].id, b.id) || i-1 < 0,
+
+			// (middle AND (visible OR different height level)) OR edge
+			i-4096 >= 0 && (visible(c.blocks[i-4096].id, b.id) || c.blocks[i-4096].level != b.level) || i-4096 < 0,
+			i+4096 < 65536 && (visible(c.blocks[i+4096].id, b.id) || c.blocks[i+4096].level != b.level) || i+4096 >= 65536,
+			i+1 < 65536 && (visible(c.blocks[i+1].id, b.id) || c.blocks[i+1].level != b.level) || i+1 >= 65536,
+			i-1 >= 0 && (visible(c.blocks[i-1].id, b.id) || c.blocks[i-1].level != b.level) || i-1 < 0,
 		}
 
 		if BLOCK_TYPES[b.id].isTransparent {
@@ -67,7 +70,13 @@ func GetTestChunk() *Chunk {
 	}
 	for i := range 15 {
 		for j := range 15 {
-			b := block{uint8(rand.Int()%2 + 1)}
+			id := uint8(rand.Int()%3 + 1)
+			var b block
+			if id == 3 {
+				b = block{id, 13}
+			} else {
+				b = block{id, rand.Int() % 16}
+			}
 			chunk.blocks[i*4096+j] = b
 		}
 	}

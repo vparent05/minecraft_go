@@ -88,14 +88,14 @@ func (r *chunkRenderer) UpdateVBOs() error {
 	VBOs := make([]uint32, chunkCount*2)
 	gl.GenBuffers(chunkCount*2, &VBOs[0])
 	for i := range chunkCount {
-		// solid
+		// solid geometry
 		gl.BindBuffer(gl.ARRAY_BUFFER, VBOs[i])
 		vertices := r.game.Chunks[i].SolidMesh()
 
 		vertexCount[i] = int32(len(vertices))
 		gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 
-		// transparent
+		// transparent geometry
 		gl.BindBuffer(gl.ARRAY_BUFFER, VBOs[i+chunkCount])
 		vertices = r.game.Chunks[i].TransparentMesh()
 
