@@ -49,8 +49,6 @@ func main() {
 	fmt.Printf("OpenGL version: %s\n", version)
 
 	gl.Enable(gl.DEPTH_TEST)
-	gl.Enable(gl.BLEND)
-	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 	gl.Enable(gl.CULL_FACE)
 
 	game := &p_game.Game{
@@ -97,12 +95,12 @@ func main() {
 
 		game.View = mgl32.LookAtV(game.Player.CameraPosition(), game.Player.CameraPosition().Add(game.Player.Orientation()), mgl32.Vec3{0, 1, 0})
 
-		err = chunkRenderer.Draw()
+		err = skyboxRenderer.Draw()
 		if err != nil {
 			panic(fmt.Errorf("Draw(): %w", err))
 		}
 
-		err = skyboxRenderer.Draw()
+		err = chunkRenderer.Draw()
 		if err != nil {
 			panic(fmt.Errorf("Draw(): %w", err))
 		}

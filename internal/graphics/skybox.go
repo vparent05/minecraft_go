@@ -125,9 +125,12 @@ func (r *skyboxRenderer) Draw() error {
 	rotationOnlyView := r.game.View.Mat3().Mat4()
 	gl.UniformMatrix4fv(viewLocation, 1, false, &rotationOnlyView[0])
 
+	gl.DepthMask(false)
 	gl.DepthFunc(gl.LEQUAL)
 	gl.BindVertexArray(r.VAO)
 	gl.DrawArrays(gl.TRIANGLES, 0, 36)
+	gl.DepthMask(true)
 	gl.DepthFunc(gl.LESS)
+
 	return nil
 }
