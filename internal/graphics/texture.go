@@ -51,12 +51,6 @@ func setTextureInterpolation(target uint32, param int32) {
 	gl.TexParameteri(target, gl.TEXTURE_MAG_FILTER, param)
 }
 
-func setTextureWrap(target uint32, param int32) {
-	gl.TexParameteri(target, gl.TEXTURE_WRAP_S, param)
-	gl.TexParameteri(target, gl.TEXTURE_WRAP_T, param)
-	gl.TexParameteri(target, gl.TEXTURE_WRAP_R, param)
-}
-
 /*
 Load the cubemap texture in the "id" tray
 Assumes a .png file
@@ -93,7 +87,6 @@ func loadCubemap(path string, id uint32) error {
 	}
 
 	setTextureInterpolation(gl.TEXTURE_CUBE_MAP, gl.LINEAR)
-	setTextureWrap(gl.TEXTURE_CUBE_MAP, gl.CLAMP_TO_EDGE)
 
 	return nil
 }
@@ -142,7 +135,6 @@ func loadTextureAtlas(path string, id uint32, resolution int) (map[string]uint8,
 	)
 
 	setTextureInterpolation(gl.TEXTURE_2D, gl.NEAREST)
-	setTextureWrap(gl.TEXTURE_2D, gl.CLAMP_TO_EDGE)
 
 	return atlasMap, nil
 }
