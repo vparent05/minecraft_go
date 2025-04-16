@@ -8,7 +8,7 @@ import (
 
 type Chunk struct {
 	position mgl32.Vec2
-	blocks   [65536]block // 16 * 256 * 16, index = x * 4096 + y * 16 + z
+	blocks   [57375]block // 15 * 255 * 15, index = x * 3825 + y * 15 + z
 
 	solidMesh       []uint32
 	transparentMesh []uint32
@@ -29,19 +29,19 @@ func (c *Chunk) generateMesh() {
 		if b.id == 0 {
 			continue
 		}
-		x := (i / 4096) & 0xf
-		y := ((i % 4096) / 16) & 0xff
-		z := (i % 16) & 0xf
+		x := (i / 3825) & 0xf
+		y := ((i % 3825) / 15) & 0xff
+		z := (i % 15) & 0xf
 
 		render := [6]bool{
 			// (middle AND visible) OR edge
-			i+16 < 65536 && visible(c.blocks[i+16].id, b.id) || i+16 >= 65536,
-			i-16 >= 0 && visible(c.blocks[i-16].id, b.id) || i-16 < 0,
+			i+15 < 57375 && visible(c.blocks[i+15].id, b.id) || i+15 >= 57375,
+			i-15 >= 0 && visible(c.blocks[i-15].id, b.id) || i-15 < 0,
 
 			// (middle AND (visible OR different height level)) OR edge
-			i-4096 >= 0 && (visible(c.blocks[i-4096].id, b.id) || c.blocks[i-4096].level != b.level) || i-4096 < 0,
-			i+4096 < 65536 && (visible(c.blocks[i+4096].id, b.id) || c.blocks[i+4096].level != b.level) || i+4096 >= 65536,
-			i+1 < 65536 && (visible(c.blocks[i+1].id, b.id) || c.blocks[i+1].level != b.level) || i+1 >= 65536,
+			i-3825 >= 0 && (visible(c.blocks[i-3825].id, b.id) || c.blocks[i-3825].level != b.level) || i-3825 < 0,
+			i+3825 < 57375 && (visible(c.blocks[i+3825].id, b.id) || c.blocks[i+3825].level != b.level) || i+3825 >= 57375,
+			i+1 < 57375 && (visible(c.blocks[i+1].id, b.id) || c.blocks[i+1].level != b.level) || i+1 >= 57375,
 			i-1 >= 0 && (visible(c.blocks[i-1].id, b.id) || c.blocks[i-1].level != b.level) || i-1 < 0,
 		}
 
@@ -61,10 +61,14 @@ func (c *Chunk) TransparentMesh() []uint32 {
 	return c.transparentMesh
 }
 
-func GetTestChunk() *Chunk {
+func (c *Chunk) Position() mgl32.Vec2 {
+	return c.position
+}
+
+func GetTestChunk(i int) *Chunk {
 	chunk := Chunk{
-		mgl32.Vec2{0, 0},
-		[65536]block{},
+		mgl32.Vec2{float32(i % 16), float32(i / 16)},
+		[57375]block{},
 		nil,
 		nil,
 	}
@@ -75,9 +79,9 @@ func GetTestChunk() *Chunk {
 			if id == 3 {
 				b = block{id, 13}
 			} else {
-				b = block{id, rand.Int() % 16}
+				b = block{id, 15}
 			}
-			chunk.blocks[i*4096+j] = b
+			chunk.blocks[i*3825+j] = b
 		}
 	}
 	chunk.generateMesh()

@@ -130,6 +130,13 @@ func (r *chunkRenderer) Draw() error {
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 	for i, VBO := range r.VBOs {
+		chunkCoordinatesLocation, err := r.program.getUniformLocation("chunkCoordinates")
+		if err != nil {
+			return fmt.Errorf("getUniformLocation(): %w", err)
+		}
+		chunkPosition := r.game.Chunks[i%len(r.game.Chunks)].Position()
+		gl.Uniform2fv(chunkCoordinatesLocation, 1, &chunkPosition[0])
+
 		gl.BindBuffer(gl.ARRAY_BUFFER, VBO)
 		gl.VertexAttribIPointer(0, 1, gl.INT, 4, nil)
 		gl.DrawArrays(gl.TRIANGLES, 0, r.vertexCount[i])

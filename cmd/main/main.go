@@ -69,7 +69,9 @@ func main() {
 
 	p_game.LoadBlocks()
 
-	game.Chunks = append(game.Chunks, p_game.GetTestChunk())
+	for i := range 256 {
+		game.Chunks = append(game.Chunks, p_game.GetTestChunk(i))
+	}
 	err = chunkRenderer.UpdateVBOs()
 	if err != nil {
 		panic(fmt.Errorf("UpdateVBOs(): %w", err))
