@@ -101,7 +101,7 @@ func NewSkyboxRenderer(game *game.Game) (*skyboxRenderer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("getUniformLocation(): %w", err)
 	}
-	gl.UniformMatrix4fv(projectionLocation, 1, false, &game.Projection[0])
+	gl.UniformMatrix4fv(projectionLocation, 1, false, &game.Projection[0]) //(*float32)(gl.Ptr(&game.Projection)))
 
 	skyboxLocation, err := skyboxProgram.getUniformLocation("skybox")
 	if err != nil {
@@ -123,7 +123,7 @@ func (r *skyboxRenderer) Draw() error {
 		return fmt.Errorf("getUniformLocation(): %w", err)
 	}
 	rotationOnlyView := r.game.View.Mat3().Mat4()
-	gl.UniformMatrix4fv(viewLocation, 1, false, &rotationOnlyView[0])
+	gl.UniformMatrix4fv(viewLocation, 1, false, &rotationOnlyView[0]) //(*float32)(gl.Ptr(&rotationOnlyView)))
 
 	gl.DepthMask(false)
 	gl.DepthFunc(gl.LEQUAL)

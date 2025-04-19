@@ -6,7 +6,7 @@ import (
 
 type Game struct {
 	Player     *player
-	Chunks     []*Chunk
+	Level      *Level
 	Projection mgl32.Mat4
 	View       mgl32.Mat4
 }

@@ -4,14 +4,30 @@ import (
 	"math/rand"
 
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/vparent05/minecraft_go/internal/utils"
 )
 
 type Chunk struct {
-	position mgl32.Vec2
-	blocks   [57375]block // 15 * 255 * 15, index = x * 3825 + y * 15 + z
+	blocks [57375]block // 15 * 255 * 15, index = x * 3825 + y * 15 + z
 
 	solidMesh       []uint32
 	transparentMesh []uint32
+}
+
+type Level struct {
+	Chunks *utils.IndexedMap[mgl32.Vec2, *Chunk]
+}
+
+func (l *Level) updateChunksAround(chunkCoords mgl32.Vec2, renderDistance int) {
+	for pos := range l.Chunks.Iterator() {
+		inRenderDistance := mgl32.Abs(pos.X()-chunkCoords.X()) < float32(renderDistance) &&
+			mgl32.Abs(pos.Y()-chunkCoords.Y()) < float32(renderDistance)
+
+		if inRenderDistance {
+			continue
+		}
+		l.Chunks.Remove(pos)
+	}
 }
 
 /*
@@ -61,13 +77,8 @@ func (c *Chunk) TransparentMesh() []uint32 {
 	return c.transparentMesh
 }
 
-func (c *Chunk) Position() mgl32.Vec2 {
-	return c.position
-}
-
-func GetTestChunk(i int) *Chunk {
+func GetTestChunk() *Chunk {
 	chunk := Chunk{
-		mgl32.Vec2{float32(i % 16), float32(i / 16)},
 		[57375]block{},
 		nil,
 		nil,

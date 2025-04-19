@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"math"
 	"runtime"
-	"time"
 
 	"github.com/go-gl/gl/v4.6-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
 	p_game "github.com/vparent05/minecraft_go/internal/game"
 	"github.com/vparent05/minecraft_go/internal/graphics"
+	"github.com/vparent05/minecraft_go/internal/utils"
 )
 
 func checkGLError() {
@@ -51,11 +51,10 @@ func main() {
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.CULL_FACE)
 
-	game := &p_game.Game{
-		Player:     p_game.NewPlayer(),
-		Chunks:     []*p_game.Chunk{},
-		Projection: mgl32.Perspective(math.Pi/4, 16.0/9.0, 0.1, 100),
-	}
+	game := &p_game.Game{}
+	game.Player = p_game.NewPlayer(game)
+	game.Level = &p_game.Level{Chunks: utils.NewIndexedMap[mgl32.Vec2, *p_game.Chunk]()}
+	game.Projection = mgl32.Perspective(math.Pi/4, 16.0/9.0, 0.1, 100)
 
 	chunkRenderer, err := graphics.NewChunkRenderer(game)
 	if err != nil {
@@ -70,23 +69,19 @@ func main() {
 	p_game.LoadBlocks()
 
 	for i := range 256 {
-		game.Chunks = append(game.Chunks, p_game.GetTestChunk(i))
-	}
-	err = chunkRenderer.UpdateVBOs()
-	if err != nil {
-		panic(fmt.Errorf("UpdateVBOs(): %w", err))
+		game.Level.Chunks.Insert(mgl32.Vec2{float32(i % 16), float32(i / 16)}, p_game.GetTestChunk())
 	}
 
 	lastFrame := glfw.GetTime()
 	var deltaTime float64
 	var currentTime float64
 
-	go func() {
-		for {
-			fmt.Printf("FPS: %.2f\n", 1.0/deltaTime)
-			time.Sleep(time.Second / 10)
-		}
-	}()
+	//go func() {
+	//	for {
+	//		fmt.Printf("FPS: %.2f\n", 1.0/deltaTime)
+	//		time.Sleep(time.Second / 10)
+	//	}
+	//}()
 
 	for !window.ShouldClose() {
 		currentTime = glfw.GetTime()

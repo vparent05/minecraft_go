@@ -20,12 +20,15 @@ const (
 )
 
 type player struct {
+	game               *Game
 	movementController movement.Controller
+	chunkCoords        mgl32.Vec2
 	cameraOffsets      []mgl32.Vec3
 	selectedCamera     int
 	yaw                float32
 	pitch              float32
 	maxPitch           float32
+	renderDistance     int
 }
 
 func (p *player) ProcessInputs(deltaTime float32) {
@@ -61,14 +64,17 @@ func (p *player) ProcessInputs(deltaTime float32) {
 	p.UpdatePosition(directions, deltaTime)
 }
 
-func NewPlayer() *player {
+func NewPlayer(game *Game) *player {
 	return &player{
+		game,
 		movement.NewController(mgl32.Vec3{0, 0, 0}, 15, 15, 5),
+		mgl32.Vec2{0, 0},
 		[]mgl32.Vec3{{0, 0, 0}},
 		0,
 		0,
 		0,
 		4 * math.Pi / 9,
+		5,
 	}
 }
 
@@ -120,6 +126,16 @@ func (p *player) UpdatePosition(directions []Direction, deltaTime float32) {
 	}
 
 	p.movementController.Move(deltaTime, direction)
+
+	newChunkCoords := mgl32.Vec2{
+		float32(math.Floor(float64(p.movementController.Position().X() / 15))),
+		float32(math.Floor(float64(p.movementController.Position().Z() / 15))),
+	}
+
+	if newChunkCoords != p.chunkCoords {
+		p.chunkCoords = newChunkCoords
+		p.game.Level.updateChunksAround(newChunkCoords, p.renderDistance)
+	}
 }
 
 func (p *player) UpdateOrientation(mouseDisplacementRad mgl32.Vec2) {
