@@ -74,7 +74,7 @@ func main() {
 	go func() {
 		for {
 			fmt.Printf("FPS: %.2f\n", 1.0/deltaTime)
-			time.Sleep(time.Second / 10)
+			time.Sleep(time.Second)
 		}
 	}()
 

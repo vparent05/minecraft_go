@@ -83,6 +83,7 @@ func (r *chunkRenderer) updateVBOs(chunk *p_game.Chunk) {
 	if len(vertices) > 0 {
 		gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 	}
+	chunk.Dirty = false
 }
 
 func (r *chunkRenderer) deleteVBOs(chunk *p_game.Chunk) {
@@ -130,7 +131,7 @@ func (r *chunkRenderer) Draw() error {
 			r.deleteVBOs(chunk)
 			continue
 		}
-		if chunk.SolidVBO == 0 {
+		if chunk.SolidVBO == 0 || chunk.Dirty {
 			r.updateVBOs(chunk)
 		}
 

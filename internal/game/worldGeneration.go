@@ -14,16 +14,16 @@ func generateChunk(pos mgl32.Vec2) *Chunk {
 		nil,
 		nil,
 		true,
+		false,
 		0,
 		0,
 	}
-
 	x := int(pos.X())
 	z := int(pos.Y())
-	for i := range 15 {
-		for j := range 15 {
-			xBlock := i + x*15
-			zBlock := j + z*15
+	for i := range CHUNK_WIDTH {
+		for j := range CHUNK_WIDTH {
+			xBlock := i + x*CHUNK_WIDTH
+			zBlock := j + z*CHUNK_WIDTH
 			topY := int(math.Floor(float64(utils.FractalNoise2(float32(xBlock), float32(zBlock), 6)+1)*30) + 35)
 
 			for k := range topY {
