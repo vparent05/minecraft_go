@@ -125,7 +125,7 @@ func (l *level) castRay(position mgl32.Vec3, orientation mgl32.Vec3, length floa
 			continue
 		}
 		index := chunkIndex(blockX, int(blockPos.Y())%CHUNK_HEIGHT, blockZ)
-		if index >= 0 && index < 57375 && chunk.blocks[index].id != 0 {
+		if index >= 0 && index < CHUNK_WIDTH*CHUNK_HEIGHT*CHUNK_WIDTH && chunk.blocks[index].id != 0 {
 			return chunk, index, dir
 		}
 	}
