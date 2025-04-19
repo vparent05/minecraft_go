@@ -10,23 +10,39 @@ import (
 type Chunk struct {
 	blocks [57375]block // 15 * 255 * 15, index = x * 3825 + y * 15 + z
 
+	SolidVBO        uint32
+	TransparentVBO  uint32
 	solidMesh       []uint32
 	transparentMesh []uint32
 }
 
 type Level struct {
 	Chunks *utils.IndexedMap[mgl32.Vec2, *Chunk]
+
+	Update chan<- mgl32.Vec2
+	Delete chan<- uint32
 }
 
 func (l *Level) updateChunksAround(chunkCoords mgl32.Vec2, renderDistance int) {
-	for pos := range l.Chunks.Iterator() {
-		inRenderDistance := mgl32.Abs(pos.X()-chunkCoords.X()) < float32(renderDistance) &&
-			mgl32.Abs(pos.Y()-chunkCoords.Y()) < float32(renderDistance)
-
-		if inRenderDistance {
-			continue
+	for _, pos := range l.Chunks.Keys() {
+		inRenderDistance := mgl32.Abs(pos.X()-chunkCoords.X()) <= float32(renderDistance) &&
+			mgl32.Abs(pos.Y()-chunkCoords.Y()) <= float32(renderDistance)
+		if chunk, ok := l.Chunks.Get(pos); !inRenderDistance && ok {
+			sBuf := chunk.SolidVBO
+			tBuf := chunk.TransparentVBO
+			l.Chunks.Remove(pos)
+			l.Delete <- sBuf
+			l.Delete <- tBuf
 		}
-		l.Chunks.Remove(pos)
+	}
+	for x := -renderDistance; x <= renderDistance; x++ {
+		for z := -renderDistance; z <= renderDistance; z++ {
+			pos := chunkCoords.Add(mgl32.Vec2{float32(x), float32(z)})
+			if _, ok := l.Chunks.Get(pos); !ok {
+				l.Chunks.Insert(pos, generateChunk(pos))
+				l.Update <- pos
+			}
+		}
 	}
 }
 
@@ -36,6 +52,10 @@ Returns true if block id "id2" is visible through block id "id1"
 func visible(id1, id2 uint8) bool {
 	return id1 == 0 ||
 		BLOCK_TYPES[id1].isTransparent && id1 != id2
+}
+
+func chunkIndex(x, y, z int) int {
+	return x*3825 + y*15 + z
 }
 
 func (c *Chunk) generateMesh() {
@@ -51,14 +71,14 @@ func (c *Chunk) generateMesh() {
 
 		render := [6]bool{
 			// (middle AND visible) OR edge
-			i+15 < 57375 && visible(c.blocks[i+15].id, b.id) || i+15 >= 57375,
-			i-15 >= 0 && visible(c.blocks[i-15].id, b.id) || i-15 < 0,
+			y+1 < 255 && visible(c.blocks[chunkIndex(x, y+1, z)].id, b.id) || y+1 >= 255,
+			y-1 >= 0 && visible(c.blocks[chunkIndex(x, y-1, z)].id, b.id) || y-1 < 0,
 
 			// (middle AND (visible OR different height level)) OR edge
-			i-3825 >= 0 && (visible(c.blocks[i-3825].id, b.id) || c.blocks[i-3825].level != b.level) || i-3825 < 0,
-			i+3825 < 57375 && (visible(c.blocks[i+3825].id, b.id) || c.blocks[i+3825].level != b.level) || i+3825 >= 57375,
-			i+1 < 57375 && (visible(c.blocks[i+1].id, b.id) || c.blocks[i+1].level != b.level) || i+1 >= 57375,
-			i-1 >= 0 && (visible(c.blocks[i-1].id, b.id) || c.blocks[i-1].level != b.level) || i-1 < 0,
+			x-1 >= 0 && (visible(c.blocks[chunkIndex(x-1, y, z)].id, b.id) || c.blocks[chunkIndex(x-1, y, z)].level != b.level) || x-1 < 0,
+			x+1 < 15 && (visible(c.blocks[chunkIndex(x+1, y, z)].id, b.id) || c.blocks[chunkIndex(x+1, y, z)].level != b.level) || x+1 >= 15,
+			z+1 < 15 && (visible(c.blocks[chunkIndex(x, y, z+1)].id, b.id) || c.blocks[chunkIndex(x, y, z+1)].level != b.level) || z+1 >= 15,
+			z-1 >= 0 && (visible(c.blocks[chunkIndex(x, y, z-1)].id, b.id) || c.blocks[chunkIndex(x, y, z-1)].level != b.level) || z-1 < 0,
 		}
 
 		if BLOCK_TYPES[b.id].isTransparent {
@@ -80,6 +100,8 @@ func (c *Chunk) TransparentMesh() []uint32 {
 func GetTestChunk() *Chunk {
 	chunk := Chunk{
 		[57375]block{},
+		0,
+		0,
 		nil,
 		nil,
 	}

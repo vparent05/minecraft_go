@@ -5,15 +5,14 @@ import (
 	"fmt"
 
 	"github.com/go-gl/gl/v4.6-core/gl"
+	"github.com/go-gl/mathgl/mgl32"
 	p_game "github.com/vparent05/minecraft_go/internal/game"
 )
 
 type chunkRenderer struct {
-	game        *p_game.Game
-	program     *program
-	VAO         uint32
-	VBOs        []uint32
-	vertexCount []int32
+	game    *p_game.Game
+	program *program
+	VAO     uint32
 }
 
 func NewChunkRenderer(game *p_game.Game) (*chunkRenderer, error) {
@@ -51,7 +50,7 @@ func NewChunkRenderer(game *p_game.Game) (*chunkRenderer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("getUniformLocation(): %w", err)
 	}
-	gl.UniformMatrix4fv(projectionLocation, 1, false, &game.Projection[0]) //(*float32)(gl.Ptr(&game.Projection)))
+	gl.UniformMatrix4fv(projectionLocation, 1, false, &game.Projection[0])
 
 	textureLocation, err := blockProgram.getUniformLocation("atlas")
 	if err != nil {
@@ -63,70 +62,37 @@ func NewChunkRenderer(game *p_game.Game) (*chunkRenderer, error) {
 		game,
 		blockProgram,
 		VAO,
-		[]uint32{},
-		[]int32{},
 	}, nil
 }
 
-func (r *chunkRenderer) updateVBOs() {
-	gl.BindVertexArray(r.VAO)
-
-	// create vertex buffer objects
-	chunkCount := r.game.Level.Chunks.Len()
-
-	if len(r.VBOs) > 0 {
-		gl.DeleteBuffers(int32(len(r.VBOs)), (*uint32)(gl.Ptr(r.VBOs)))
-	}
-
-	if chunkCount == 0 {
-		r.VBOs = []uint32{}
-		r.vertexCount = []int32{}
-		return
-	}
-
-	vertexCount := make([]int32, chunkCount*2)
-	VBOs := make([]uint32, chunkCount*2)
-	gl.GenBuffers(int32(chunkCount*2), (*uint32)(gl.Ptr(VBOs)))
-	for _, chunk := range r.game.Level.Chunks.Iterator() {
-		// solid geometry
-		gl.BindBuffer(gl.ARRAY_BUFFER, VBOs[chunk.Index])
-		vertices := chunk.Value.SolidMesh()
-
-		vertexCount[chunk.Index] = int32(len(vertices))
-		gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
-
-		// transparent geometry
-		gl.BindBuffer(gl.ARRAY_BUFFER, VBOs[chunk.Index+chunkCount])
-		vertices = chunk.Value.TransparentMesh()
-
-		vertexCount[chunk.Index+chunkCount] = int32(len(vertices))
-		gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
-	}
-
-	r.VBOs = VBOs
-	r.vertexCount = vertexCount
+func (r *chunkRenderer) DeleteVBO(buf uint32) {
+	gl.DeleteBuffers(1, &buf)
 }
 
-func (r *chunkRenderer) UpdateVBO(index int) {
-	if index >= len(r.VBOs) || index >= r.game.Level.Chunks.Len() {
-		r.updateVBOs()
+func (r *chunkRenderer) UpdateVBO(pos mgl32.Vec2) {
+	chunk, ok := r.game.Level.Chunks.Get(pos)
+	if !ok {
 		return
 	}
 
 	gl.BindVertexArray(r.VAO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.VBOs[index])
-
-	_, chunk := r.game.Level.Chunks.GetIndex(index % r.game.Level.Chunks.Len())
-
-	var vertices []uint32
-	if index < r.game.Level.Chunks.Len() {
-		vertices = chunk.SolidMesh()
-	} else {
-		vertices = chunk.TransparentMesh()
+	if chunk.SolidVBO == 0 {
+		gl.GenBuffers(1, &chunk.SolidVBO)
+	}
+	gl.BindBuffer(gl.ARRAY_BUFFER, chunk.SolidVBO)
+	vertices := chunk.SolidMesh()
+	if len(vertices) > 0 {
+		gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 	}
 
-	r.vertexCount[index] = int32(len(vertices))
-	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
+	if chunk.TransparentVBO == 0 {
+		gl.GenBuffers(1, &chunk.TransparentVBO)
+	}
+	gl.BindBuffer(gl.ARRAY_BUFFER, chunk.TransparentVBO)
+	vertices = chunk.TransparentMesh()
+	if len(vertices) > 0 {
+		gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
+	}
 }
 
 func (r *chunkRenderer) Draw() error {
@@ -135,22 +101,41 @@ func (r *chunkRenderer) Draw() error {
 	if err != nil {
 		return fmt.Errorf("getUniformLocation(): %w", err)
 	}
-	gl.UniformMatrix4fv(viewLocation, 1, false, &r.game.View[0]) //(*float32)(gl.Ptr(&r.game.View)))
+	gl.UniformMatrix4fv(viewLocation, 1, false, &r.game.View[0])
 	gl.BindVertexArray(r.VAO)
 
-	gl.Enable(gl.BLEND)
-	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-	for i, VBO := range r.VBOs {
+	for pos, chunk := range r.game.Level.Chunks.Iterator() {
+		if chunk.SolidVBO == 0 {
+			continue
+		}
+
 		chunkCoordinatesLocation, err := r.program.getUniformLocation("chunkCoordinates")
 		if err != nil {
 			return fmt.Errorf("getUniformLocation(): %w", err)
 		}
-		chunkPosition, _ := r.game.Level.Chunks.GetIndex(i % r.game.Level.Chunks.Len())
-		gl.Uniform2fv(chunkCoordinatesLocation, 1, &chunkPosition[0]) //(*float32)(gl.Ptr(chunkPosition)))
 
-		gl.BindBuffer(gl.ARRAY_BUFFER, VBO)
+		gl.Uniform2fv(chunkCoordinatesLocation, 1, &pos[0])
+
+		gl.BindBuffer(gl.ARRAY_BUFFER, chunk.SolidVBO)
 		gl.VertexAttribIPointer(0, 1, gl.INT, 4, nil)
-		gl.DrawArrays(gl.TRIANGLES, 0, r.vertexCount[i])
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(chunk.SolidMesh())))
+	}
+
+	for pos, chunk := range r.game.Level.Chunks.Iterator() {
+		if chunk.SolidVBO == 0 {
+			continue
+		}
+
+		chunkCoordinatesLocation, err := r.program.getUniformLocation("chunkCoordinates")
+		if err != nil {
+			return fmt.Errorf("getUniformLocation(): %w", err)
+		}
+
+		gl.Uniform2fv(chunkCoordinatesLocation, 1, &pos[0])
+
+		gl.BindBuffer(gl.ARRAY_BUFFER, chunk.TransparentVBO)
+		gl.VertexAttribIPointer(0, 1, gl.INT, 4, nil)
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(chunk.TransparentMesh())))
 	}
 	return nil
 }

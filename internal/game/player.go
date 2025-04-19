@@ -67,7 +67,7 @@ func (p *player) ProcessInputs(deltaTime float32) {
 func NewPlayer(game *Game) *player {
 	return &player{
 		game,
-		movement.NewController(mgl32.Vec3{0, 0, 0}, 15, 15, 50),
+		movement.NewController(mgl32.Vec3{0, 0, 0}, 100, 15, 500),
 		mgl32.Vec2{0, 0},
 		[]mgl32.Vec3{{0, 0, 0}},
 		0,
