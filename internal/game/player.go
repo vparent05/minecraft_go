@@ -67,14 +67,14 @@ func (p *player) ProcessInputs(deltaTime float32) {
 func NewPlayer(game *Game) *player {
 	return &player{
 		game,
-		movement.NewController(mgl32.Vec3{0, 0, 0}, 15, 15, 5),
+		movement.NewController(mgl32.Vec3{0, 0, 0}, 15, 15, 50),
 		mgl32.Vec2{0, 0},
 		[]mgl32.Vec3{{0, 0, 0}},
 		0,
 		0,
 		0,
 		4 * math.Pi / 9,
-		5,
+		16,
 	}
 }
 
@@ -134,7 +134,7 @@ func (p *player) UpdatePosition(directions []Direction, deltaTime float32) {
 
 	if newChunkCoords != p.chunkCoords {
 		p.chunkCoords = newChunkCoords
-		p.game.Level.updateChunksAround(newChunkCoords, p.renderDistance)
+		go p.game.Level.updateChunksAround(newChunkCoords, p.renderDistance)
 	}
 }
 
