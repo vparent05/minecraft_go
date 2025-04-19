@@ -11,7 +11,6 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	p_game "github.com/vparent05/minecraft_go/internal/game"
 	"github.com/vparent05/minecraft_go/internal/graphics"
-	"github.com/vparent05/minecraft_go/internal/utils"
 )
 
 func checkGLError() {
@@ -52,10 +51,7 @@ func main() {
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.CULL_FACE)
 
-	game := &p_game.Game{}
-	game.Player = p_game.NewPlayer(game)
-	game.Level = &p_game.Level{Chunks: utils.NewMutexMap[mgl32.Vec2, *p_game.Chunk]()}
-	game.Projection = mgl32.Perspective(math.Pi/4, 16.0/9.0, 0.1, 512)
+	game := p_game.NewGame(mgl32.Perspective(math.Pi/4, 16.0/9.0, 0.1, 2048))
 
 	chunkRenderer, err := graphics.NewChunkRenderer(game)
 	if err != nil {
@@ -80,27 +76,10 @@ func main() {
 		}
 	}()
 
-	chunkUpdate := make(chan mgl32.Vec2)
-	vboDelete := make(chan uint32)
-	game.Level.Update = chunkUpdate
-	game.Level.Delete = vboDelete
-
 	for !window.ShouldClose() {
 		currentTime = glfw.GetTime()
 		deltaTime = currentTime - lastFrame
 		lastFrame = currentTime
-
-		select {
-		case pos := <-chunkUpdate:
-			chunkRenderer.UpdateVBO(pos)
-		default:
-		}
-
-		select {
-		case buf := <-vboDelete:
-			chunkRenderer.DeleteVBO(buf)
-		default:
-		}
 
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 

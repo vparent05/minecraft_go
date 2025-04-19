@@ -55,7 +55,7 @@ var skyboxVertices = []float32{
 type skyboxRenderer struct {
 	game    *game.Game
 	program *program
-	VAO     uint32
+	_VAO    uint32
 }
 
 func NewSkyboxRenderer(game *game.Game) (*skyboxRenderer, error) {
@@ -127,7 +127,7 @@ func (r *skyboxRenderer) Draw() error {
 
 	gl.DepthMask(false)
 	gl.DepthFunc(gl.LEQUAL)
-	gl.BindVertexArray(r.VAO)
+	gl.BindVertexArray(r._VAO)
 	gl.DrawArrays(gl.TRIANGLES, 0, 36)
 	gl.DepthMask(true)
 	gl.DepthFunc(gl.LESS)

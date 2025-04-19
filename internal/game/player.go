@@ -11,18 +11,18 @@ import (
 type Direction = int
 
 const (
-	FRONT Direction = iota
-	BACK  Direction = iota
-	LEFT  Direction = iota
-	RIGHT Direction = iota
-	UP    Direction = iota
-	DOWN  Direction = iota
+	_FRONT Direction = iota
+	_BACK  Direction = iota
+	_LEFT  Direction = iota
+	_RIGHT Direction = iota
+	_UP    Direction = iota
+	_DOWN  Direction = iota
 )
 
 type player struct {
 	game               *Game
 	movementController movement.Controller
-	chunkCoords        mgl32.Vec2
+	chunkCoords        *mgl32.Vec2
 	cameraOffsets      []mgl32.Vec3
 	selectedCamera     int
 	yaw                float32
@@ -38,22 +38,22 @@ func (p *player) ProcessInputs(deltaTime float32) {
 
 	directions := make([]Direction, 0, 6)
 	if glfw.GetCurrentContext().GetKey(glfw.KeyW) == glfw.Press {
-		directions = append(directions, FRONT)
+		directions = append(directions, _FRONT)
 	}
 	if glfw.GetCurrentContext().GetKey(glfw.KeyA) == glfw.Press {
-		directions = append(directions, LEFT)
+		directions = append(directions, _LEFT)
 	}
 	if glfw.GetCurrentContext().GetKey(glfw.KeyS) == glfw.Press {
-		directions = append(directions, BACK)
+		directions = append(directions, _BACK)
 	}
 	if glfw.GetCurrentContext().GetKey(glfw.KeyD) == glfw.Press {
-		directions = append(directions, RIGHT)
+		directions = append(directions, _RIGHT)
 	}
 	if glfw.GetCurrentContext().GetKey(glfw.KeySpace) == glfw.Press {
-		directions = append(directions, UP)
+		directions = append(directions, _UP)
 	}
 	if glfw.GetCurrentContext().GetKey(glfw.KeyLeftShift) == glfw.Press {
-		directions = append(directions, DOWN)
+		directions = append(directions, _DOWN)
 	}
 
 	width, height := glfw.GetCurrentContext().GetSize()
@@ -65,10 +65,10 @@ func (p *player) ProcessInputs(deltaTime float32) {
 }
 
 func NewPlayer(game *Game) *player {
-	return &player{
+	p := player{
 		game,
-		movement.NewController(mgl32.Vec3{0, 0, 0}, 100, 15, 500),
-		mgl32.Vec2{0, 0},
+		movement.NewController(mgl32.Vec3{0, 65, 0}, 100, 100, 500),
+		&mgl32.Vec2{0, 0},
 		[]mgl32.Vec3{{0, 0, 0}},
 		0,
 		0,
@@ -76,6 +76,8 @@ func NewPlayer(game *Game) *player {
 		4 * math.Pi / 9,
 		16,
 	}
+	go game.Level.updateChunksAround(p.chunkCoords, &p.renderDistance)
+	return &p
 }
 
 func (p *player) Position() mgl32.Vec3 {
@@ -100,17 +102,17 @@ func (p *player) UpdatePosition(directions []Direction, deltaTime float32) {
 
 	for _, dir := range directions {
 		switch dir {
-		case FRONT:
+		case _FRONT:
 			direction = direction.Add(mgl32.Vec3{0, 0, -1})
-		case BACK:
+		case _BACK:
 			direction = direction.Add(mgl32.Vec3{0, 0, 1})
-		case LEFT:
+		case _LEFT:
 			direction = direction.Add(mgl32.Vec3{-1, 0, 0})
-		case RIGHT:
+		case _RIGHT:
 			direction = direction.Add(mgl32.Vec3{1, 0, 0})
-		case UP:
+		case _UP:
 			direction = direction.Add(mgl32.Vec3{0, 1, 0})
-		case DOWN:
+		case _DOWN:
 			direction = direction.Add(mgl32.Vec3{0, -1, 0})
 		}
 	}
@@ -127,14 +129,9 @@ func (p *player) UpdatePosition(directions []Direction, deltaTime float32) {
 
 	p.movementController.Move(deltaTime, direction)
 
-	newChunkCoords := mgl32.Vec2{
+	*p.chunkCoords = mgl32.Vec2{
 		float32(math.Floor(float64(p.movementController.Position().X() / 15))),
 		float32(math.Floor(float64(p.movementController.Position().Z() / 15))),
-	}
-
-	if newChunkCoords != p.chunkCoords {
-		p.chunkCoords = newChunkCoords
-		go p.game.Level.updateChunksAround(newChunkCoords, p.renderDistance)
 	}
 }
 

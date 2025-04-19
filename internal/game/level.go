@@ -1,46 +1,66 @@
 package game
 
 import (
-	"math/rand"
+	"iter"
 
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/vparent05/minecraft_go/internal/utils"
 )
 
 type Chunk struct {
-	blocks [57375]block // 15 * 255 * 15, index = x * 3825 + y * 15 + z
-
-	SolidVBO        uint32
-	TransparentVBO  uint32
+	blocks          [57375]block // 15 * 255 * 15, index = x * 3825 + y * 15 + z
 	solidMesh       []uint32
 	transparentMesh []uint32
+
+	Loaded         bool
+	SolidVBO       uint32
+	TransparentVBO uint32
 }
 
-type Level struct {
-	Chunks *utils.MutexMap[mgl32.Vec2, *Chunk]
-
-	Update chan<- mgl32.Vec2
-	Delete chan<- uint32
+type level struct {
+	chunks *utils.MutexMap[mgl32.Vec2, *Chunk]
 }
 
-func (l *Level) updateChunksAround(chunkCoords mgl32.Vec2, renderDistance int) {
-	for _, pos := range l.Chunks.Keys() {
-		inRenderDistance := mgl32.Abs(pos.X()-chunkCoords.X()) <= float32(renderDistance) &&
-			mgl32.Abs(pos.Y()-chunkCoords.Y()) <= float32(renderDistance)
-		if chunk, ok := l.Chunks.Get(pos); !inRenderDistance && ok {
-			sBuf := chunk.SolidVBO
-			tBuf := chunk.TransparentVBO
-			l.Chunks.Delete(pos)
-			l.Delete <- sBuf
-			l.Delete <- tBuf
+func NewLevel() *level {
+	return &level{
+		chunks: utils.NewMutexMap[mgl32.Vec2, *Chunk](),
+	}
+}
+
+func (l *level) updateChunksAround(chunkCoords *mgl32.Vec2, renderDistance *int) {
+	for chunkCoords != nil {
+		for pos, chunk := range l.Iterator() {
+			inRenderDistance := mgl32.Abs(pos.X()-chunkCoords.X()) <= float32(*renderDistance) &&
+				mgl32.Abs(pos.Y()-chunkCoords.Y()) <= float32(*renderDistance)
+
+			if chunk != nil && !inRenderDistance {
+				if chunk.SolidVBO == 0 && chunk.TransparentVBO == 0 {
+					l.chunks.Delete(pos)
+					continue
+				}
+				chunk.Loaded = false
+			}
+		}
+		for x := -*renderDistance; x <= *renderDistance; x++ {
+			for z := -*renderDistance; z <= *renderDistance; z++ {
+				pos := chunkCoords.Add(mgl32.Vec2{float32(x), float32(z)})
+				if c, ok := l.chunks.Get(pos); !ok {
+					l.chunks.Set(pos, generateChunk(pos))
+				} else {
+					c.Loaded = true
+				}
+			}
 		}
 	}
-	for x := -renderDistance; x <= renderDistance; x++ {
-		for z := -renderDistance; z <= renderDistance; z++ {
-			pos := chunkCoords.Add(mgl32.Vec2{float32(x), float32(z)})
-			if _, ok := l.Chunks.Get(pos); !ok {
-				l.Chunks.Set(pos, generateChunk(pos))
-				l.Update <- pos
+}
+
+func (l *level) Iterator() iter.Seq2[mgl32.Vec2, *Chunk] {
+	return func(yield func(mgl32.Vec2, *Chunk) bool) {
+		for _, pos := range l.chunks.Keys() {
+			if chunk, ok := l.chunks.Get(pos); ok {
+				if !yield(pos, chunk) {
+					return
+				}
 			}
 		}
 	}
@@ -95,28 +115,4 @@ func (c *Chunk) SolidMesh() []uint32 {
 
 func (c *Chunk) TransparentMesh() []uint32 {
 	return c.transparentMesh
-}
-
-func GetTestChunk() *Chunk {
-	chunk := Chunk{
-		[57375]block{},
-		0,
-		0,
-		nil,
-		nil,
-	}
-	for i := range 15 {
-		for j := range 15 {
-			id := uint8(rand.Int()%3 + 1)
-			var b block
-			if id == 3 {
-				b = block{id, 13}
-			} else {
-				b = block{id, 15}
-			}
-			chunk.blocks[i*3825+j] = b
-		}
-	}
-	chunk.generateMesh()
-	return &chunk
 }

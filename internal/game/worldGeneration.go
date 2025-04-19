@@ -11,10 +11,11 @@ func generateChunk(pos mgl32.Vec2) *Chunk {
 	const WATER_LEVEL = 60
 	chunk := Chunk{
 		[57375]block{},
-		0,
-		0,
 		nil,
 		nil,
+		true,
+		0,
+		0,
 	}
 
 	x := int(pos.X())

@@ -5,14 +5,13 @@ import (
 	"fmt"
 
 	"github.com/go-gl/gl/v4.6-core/gl"
-	"github.com/go-gl/mathgl/mgl32"
 	p_game "github.com/vparent05/minecraft_go/internal/game"
 )
 
 type chunkRenderer struct {
 	game    *p_game.Game
 	program *program
-	VAO     uint32
+	_VAO    uint32
 }
 
 func NewChunkRenderer(game *p_game.Game) (*chunkRenderer, error) {
@@ -65,17 +64,19 @@ func NewChunkRenderer(game *p_game.Game) (*chunkRenderer, error) {
 	}, nil
 }
 
-func (r *chunkRenderer) DeleteVBO(buf uint32) {
-	gl.DeleteBuffers(1, &buf)
+func (r *chunkRenderer) deleteVBOs(chunk *p_game.Chunk) {
+	if chunk.SolidVBO != 0 {
+		gl.DeleteBuffers(1, &chunk.SolidVBO)
+		chunk.SolidVBO = 0
+	}
+	if chunk.TransparentVBO != 0 {
+		gl.DeleteBuffers(1, &chunk.TransparentVBO)
+		chunk.TransparentVBO = 0
+	}
 }
 
-func (r *chunkRenderer) UpdateVBO(pos mgl32.Vec2) {
-	chunk, ok := r.game.Level.Chunks.Get(pos)
-	if !ok {
-		return
-	}
-
-	gl.BindVertexArray(r.VAO)
+func (r *chunkRenderer) updateVBOs(chunk *p_game.Chunk) {
+	gl.BindVertexArray(r._VAO)
 	if chunk.SolidVBO == 0 {
 		gl.GenBuffers(1, &chunk.SolidVBO)
 	}
@@ -95,6 +96,25 @@ func (r *chunkRenderer) UpdateVBO(pos mgl32.Vec2) {
 	}
 }
 
+func (r *chunkRenderer) draw(vbo uint32, pos *float32, count int) error {
+	if vbo == 0 {
+		return nil
+	}
+
+	chunkCoordinatesLocation, err := r.program.getUniformLocation("chunkCoordinates")
+	if err != nil {
+		return fmt.Errorf("getUniformLocation(): %w", err)
+	}
+
+	gl.Uniform2fv(chunkCoordinatesLocation, 1, pos)
+
+	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+	gl.VertexAttribIPointer(0, 1, gl.INT, 4, nil)
+	gl.DrawArrays(gl.TRIANGLES, 0, int32(count))
+
+	return nil
+}
+
 func (r *chunkRenderer) Draw() error {
 	r.program.use()
 	viewLocation, err := r.program.getUniformLocation("view")
@@ -102,40 +122,38 @@ func (r *chunkRenderer) Draw() error {
 		return fmt.Errorf("getUniformLocation(): %w", err)
 	}
 	gl.UniformMatrix4fv(viewLocation, 1, false, &r.game.View[0])
-	gl.BindVertexArray(r.VAO)
+	gl.BindVertexArray(r._VAO)
 
-	for pos, chunk := range r.game.Level.Chunks.Iterator() {
-		if chunk.SolidVBO == 0 {
+	// draw solid geometry
+	for pos, chunk := range r.game.Level.Iterator() {
+		if !chunk.Loaded {
+			r.deleteVBOs(chunk)
 			continue
 		}
-
-		chunkCoordinatesLocation, err := r.program.getUniformLocation("chunkCoordinates")
-		if err != nil {
-			return fmt.Errorf("getUniformLocation(): %w", err)
+		if chunk.SolidVBO == 0 {
+			r.updateVBOs(chunk)
 		}
 
-		gl.Uniform2fv(chunkCoordinatesLocation, 1, &pos[0])
-
-		gl.BindBuffer(gl.ARRAY_BUFFER, chunk.SolidVBO)
-		gl.VertexAttribIPointer(0, 1, gl.INT, 4, nil)
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(chunk.SolidMesh())))
+		err = r.draw(chunk.SolidVBO, &pos[0], len(chunk.SolidMesh()))
+		if err != nil {
+			return fmt.Errorf("draw(): %w", err)
+		}
 	}
 
-	for pos, chunk := range r.game.Level.Chunks.Iterator() {
-		if chunk.SolidVBO == 0 {
+	// draw transparent geometry
+	for pos, chunk := range r.game.Level.Iterator() {
+		if !chunk.Loaded {
+			r.deleteVBOs(chunk)
 			continue
 		}
-
-		chunkCoordinatesLocation, err := r.program.getUniformLocation("chunkCoordinates")
-		if err != nil {
-			return fmt.Errorf("getUniformLocation(): %w", err)
+		if chunk.SolidVBO == 0 {
+			r.updateVBOs(chunk)
 		}
 
-		gl.Uniform2fv(chunkCoordinatesLocation, 1, &pos[0])
-
-		gl.BindBuffer(gl.ARRAY_BUFFER, chunk.TransparentVBO)
-		gl.VertexAttribIPointer(0, 1, gl.INT, 4, nil)
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(chunk.TransparentMesh())))
+		err = r.draw(chunk.TransparentVBO, &pos[0], len(chunk.TransparentMesh()))
+		if err != nil {
+			return fmt.Errorf("draw(): %w", err)
+		}
 	}
 	return nil
 }

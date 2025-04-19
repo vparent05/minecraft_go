@@ -12,13 +12,13 @@ type program struct {
 	uniformLocation map[string]int32
 }
 
-type Shader struct {
+type shader struct {
 	sourcePath string
 	xtype      uint32
 }
 
-func NewShader(path string, xtype uint32) Shader {
-	return Shader{path, xtype}
+func NewShader(path string, xtype uint32) shader {
+	return shader{path, xtype}
 }
 
 func readSource(path string) (string, error) {
@@ -29,7 +29,7 @@ func readSource(path string) (string, error) {
 	return string(data), nil
 }
 
-func (s *Shader) compile() (uint32, error) {
+func (s *shader) compile() (uint32, error) {
 	shader := gl.CreateShader(s.xtype)
 	source, err := readSource(s.sourcePath)
 	if err != nil {
@@ -55,7 +55,7 @@ func (s *Shader) compile() (uint32, error) {
 	return shader, nil
 }
 
-func NewProgram(shaders ...Shader) (*program, error) {
+func NewProgram(shaders ...shader) (*program, error) {
 	p := gl.CreateProgram()
 	for _, s := range shaders {
 		sh, err := s.compile()
