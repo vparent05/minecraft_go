@@ -17,7 +17,7 @@ type Chunk struct {
 }
 
 type Level struct {
-	Chunks *utils.IndexedMap[mgl32.Vec2, *Chunk]
+	Chunks *utils.MutexMap[mgl32.Vec2, *Chunk]
 
 	Update chan<- mgl32.Vec2
 	Delete chan<- uint32
@@ -30,7 +30,7 @@ func (l *Level) updateChunksAround(chunkCoords mgl32.Vec2, renderDistance int) {
 		if chunk, ok := l.Chunks.Get(pos); !inRenderDistance && ok {
 			sBuf := chunk.SolidVBO
 			tBuf := chunk.TransparentVBO
-			l.Chunks.Remove(pos)
+			l.Chunks.Delete(pos)
 			l.Delete <- sBuf
 			l.Delete <- tBuf
 		}
@@ -39,7 +39,7 @@ func (l *Level) updateChunksAround(chunkCoords mgl32.Vec2, renderDistance int) {
 		for z := -renderDistance; z <= renderDistance; z++ {
 			pos := chunkCoords.Add(mgl32.Vec2{float32(x), float32(z)})
 			if _, ok := l.Chunks.Get(pos); !ok {
-				l.Chunks.Insert(pos, generateChunk(pos))
+				l.Chunks.Set(pos, generateChunk(pos))
 				l.Update <- pos
 			}
 		}

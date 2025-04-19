@@ -54,7 +54,7 @@ func main() {
 
 	game := &p_game.Game{}
 	game.Player = p_game.NewPlayer(game)
-	game.Level = &p_game.Level{Chunks: utils.NewIndexedMap[mgl32.Vec2, *p_game.Chunk]()}
+	game.Level = &p_game.Level{Chunks: utils.NewMutexMap[mgl32.Vec2, *p_game.Chunk]()}
 	game.Projection = mgl32.Perspective(math.Pi/4, 16.0/9.0, 0.1, 512)
 
 	chunkRenderer, err := graphics.NewChunkRenderer(game)

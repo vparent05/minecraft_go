@@ -5,23 +5,23 @@ import (
 	"sync"
 )
 
-type IndexedMap[K comparable, V any] struct {
+type MutexMap[K comparable, V any] struct {
 	mutex sync.RWMutex
 	m     map[K]V
 }
 
-func NewIndexedMap[K comparable, V any]() *IndexedMap[K, V] {
-	return &IndexedMap[K, V]{
+func NewMutexMap[K comparable, V any]() *MutexMap[K, V] {
+	return &MutexMap[K, V]{
 		m: make(map[K]V),
 	}
 }
 
-func (im *IndexedMap[K, V]) Iterator() iter.Seq2[K, V] {
+func (mm *MutexMap[K, V]) Iterator() iter.Seq2[K, V] {
 	return func(yield func(K, V) bool) {
-		im.mutex.RLock()
-		defer im.mutex.RUnlock()
+		mm.mutex.RLock()
+		defer mm.mutex.RUnlock()
 
-		for k, v := range im.m {
+		for k, v := range mm.m {
 			if !yield(k, v) {
 				return
 			}
@@ -29,38 +29,38 @@ func (im *IndexedMap[K, V]) Iterator() iter.Seq2[K, V] {
 	}
 }
 
-func (im *IndexedMap[K, V]) Keys() []K {
-	im.mutex.RLock()
-	defer im.mutex.RUnlock()
+func (mm *MutexMap[K, V]) Keys() []K {
+	mm.mutex.RLock()
+	defer mm.mutex.RUnlock()
 
-	keys := make([]K, len(im.m))
+	keys := make([]K, len(mm.m))
 
 	i := 0
-	for k := range im.m {
+	for k := range mm.m {
 		keys[i] = k
 		i++
 	}
 	return keys
 }
 
-func (im *IndexedMap[K, V]) Insert(key K, value V) {
-	im.mutex.Lock()
-	defer im.mutex.Unlock()
+func (mm *MutexMap[K, V]) Set(key K, value V) {
+	mm.mutex.Lock()
+	defer mm.mutex.Unlock()
 
-	im.m[key] = value
+	mm.m[key] = value
 }
 
-func (im *IndexedMap[K, V]) Remove(key K) {
-	im.mutex.Lock()
-	defer im.mutex.Unlock()
+func (mm *MutexMap[K, V]) Get(key K) (V, bool) {
+	mm.mutex.RLock()
+	defer mm.mutex.RUnlock()
 
-	delete(im.m, key)
-}
-
-func (im *IndexedMap[K, V]) Get(key K) (V, bool) {
-	im.mutex.RLock()
-	defer im.mutex.RUnlock()
-
-	v, ok := im.m[key]
+	v, ok := mm.m[key]
 	return v, ok
+}
+
+func (mm *MutexMap[K, V]) Delete(key K) {
+	mm.mutex.Lock()
+	defer mm.mutex.Unlock()
+
+	delete(mm.m, key)
 }
