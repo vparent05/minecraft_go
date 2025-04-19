@@ -131,12 +131,15 @@ func (p *player) ProcessInputs(deltaTime float32) {
 	p.updatePosition(directions, deltaTime)
 
 	if glfw.GetCurrentContext().GetMouseButton(glfw.MouseButton1) == glfw.Press {
-		chunk, index, _ := p.game.Level.castRay(p.CameraPosition(), p.Orientation(), p.reach)
-		if index >= 0 {
-			chunk.set(index, block{0, 0})
+		targetedChunk, targeted, _, _ := p.game.Level.castRay(p.CameraPosition(), p.Orientation(), p.reach)
+		if targetedChunk != nil && targeted >= 0 {
+			targetedChunk.set(targeted, block{0, 0})
 		}
 	}
 	if glfw.GetCurrentContext().GetMouseButton(glfw.MouseButton2) == glfw.Press {
-
+		_, _, frontChunk, front := p.game.Level.castRay(p.CameraPosition(), p.Orientation(), p.reach)
+		if frontChunk != nil && front >= 0 {
+			frontChunk.set(front, block{1, 15})
+		}
 	}
 }

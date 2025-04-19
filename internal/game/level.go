@@ -44,6 +44,22 @@ func (l *level) Iterator() iter.Seq2[mgl32.Vec2, *Chunk] {
 	}
 }
 
+func (l *level) positionInChunk(position mgl32.Vec3) (*Chunk, int) {
+	blockX := ((int(position.X()) % CHUNK_WIDTH) + CHUNK_WIDTH) % CHUNK_WIDTH
+	blockZ := ((int(position.Z()) % CHUNK_WIDTH) + CHUNK_WIDTH) % CHUNK_WIDTH
+	chunkPos := mgl32.Vec2{
+		(position.X() - float32(blockX)) / float32(CHUNK_WIDTH),
+		(position.Z() - float32(blockZ)) / float32(CHUNK_WIDTH),
+	}
+
+	chunk, ok := l.chunks.Get(chunkPos)
+	if !ok {
+		return nil, -1
+	}
+	index := chunkIndex(blockX, int(position.Y())%CHUNK_HEIGHT, blockZ)
+	return chunk, index
+}
+
 func t(from, offset, orientation float32) float32 {
 	if orientation < 0 {
 		return (float32(math.Ceil(float64(from-offset))) - from) / orientation
@@ -52,12 +68,13 @@ func t(from, offset, orientation float32) float32 {
 	}
 }
 
-func (l *level) castRay(position mgl32.Vec3, orientation mgl32.Vec3, length float32) (chunk *Chunk, index int, direction direction) {
-	blockPos := mgl32.Vec3{
+func (l *level) castRay(position mgl32.Vec3, orientation mgl32.Vec3, length float32) (targetedChunk *Chunk, targeted int, frontChunk *Chunk, front int) {
+	previousBlockPos := mgl32.Vec3{
 		float32(math.Floor(float64(position.X()))),
 		float32(math.Floor(float64(position.Y()))),
 		float32(math.Floor(float64(position.Z()))),
 	}
+	blockPos := previousBlockPos
 	steps := mgl32.Vec3{
 		orientation.X() / float32(math.Abs(float64(orientation.X()))),
 		orientation.Y() / float32(math.Abs(float64(orientation.Y()))),
@@ -65,8 +82,8 @@ func (l *level) castRay(position mgl32.Vec3, orientation mgl32.Vec3, length floa
 	}
 
 	curr := position
-	dir := -1
 	for curr.Sub(position).Len() < length {
+		previousBlockPos = blockPos
 		deltaIfX := t(curr.X(), 1, orientation.X())
 		deltaIfY := t(curr.Y(), 1, orientation.Y())
 		deltaIfZ := t(curr.Z(), 1, orientation.Z())
@@ -76,60 +93,38 @@ func (l *level) castRay(position mgl32.Vec3, orientation mgl32.Vec3, length floa
 				// move in x
 				curr = curr.Add(orientation.Mul(deltaIfX))
 				blockPos[0] += steps.X()
-				if steps.X() < 0 {
-					dir = _RIGHT
-				} else {
-					dir = _LEFT
-				}
 			} else {
 				// move in z
 				curr = curr.Add(orientation.Mul(deltaIfZ))
 				blockPos[2] += steps.Z()
-				if steps.Z() < 0 {
-					dir = _FRONT
-				} else {
-					dir = _BACK
-				}
 			}
 		} else {
 			if deltaIfY < deltaIfZ {
 				// move in y
 				curr = curr.Add(orientation.Mul(deltaIfY))
 				blockPos[1] += steps.Y()
-				if steps.Y() < 0 {
-					dir = _UP
-				} else {
-					dir = _DOWN
-				}
 			} else {
 				// move in z
 				curr = curr.Add(orientation.Mul(deltaIfZ))
 				blockPos[2] += steps.Z()
-				if steps.Z() < 0 {
-					dir = _FRONT
-				} else {
-					dir = _BACK
-				}
 			}
 		}
 
-		blockX := ((int(blockPos.X()) % CHUNK_WIDTH) + CHUNK_WIDTH) % CHUNK_WIDTH
-		blockZ := ((int(blockPos.Z()) % CHUNK_WIDTH) + CHUNK_WIDTH) % CHUNK_WIDTH
-		chunkPos := mgl32.Vec2{
-			(blockPos.X() - float32(blockX)) / float32(CHUNK_WIDTH),
-			(blockPos.Z() - float32(blockZ)) / float32(CHUNK_WIDTH),
-		}
+		// if targeted block exists and isn't air, return targeted block
+		targetedChunk, targeted := l.positionInChunk(blockPos)
+		if targetedChunk != nil && targeted >= 0 && targeted < CHUNK_WIDTH*CHUNK_HEIGHT*CHUNK_WIDTH &&
+			targetedChunk.blocks[targeted].id != 0 {
 
-		chunk, ok := l.chunks.Get(chunkPos)
-		if !ok {
-			continue
-		}
-		index := chunkIndex(blockX, int(blockPos.Y())%CHUNK_HEIGHT, blockZ)
-		if index >= 0 && index < CHUNK_WIDTH*CHUNK_HEIGHT*CHUNK_WIDTH && chunk.blocks[index].id != 0 {
-			return chunk, index, dir
+			// if front block exists, return targeted block and front block
+			frontChunk, front := l.positionInChunk(previousBlockPos)
+			if frontChunk != nil && front >= 0 && front < CHUNK_WIDTH*CHUNK_HEIGHT*CHUNK_WIDTH {
+				return targetedChunk, targeted, frontChunk, front
+			}
+
+			return targetedChunk, targeted, nil, -1
 		}
 	}
-	return nil, -1, -1
+	return nil, -1, nil, -1
 }
 
 func (l *level) updateChunksAround(chunkCoords *mgl32.Vec2, renderDistance *int) {
