@@ -24,7 +24,7 @@ func NewChunkRenderer(game *p_game.Game) (*chunkRenderer, error) {
 		return nil, fmt.Errorf("gl.Init(): %w", err)
 	}
 
-	p_game.BLOCK_TEXTURE_ATLAS, err = loadTextureAtlas("./textures/blocks", BLOCKS_TEXTURE, 16)
+	p_game.BLOCK_TEXTURE_ATLAS, err = loadTextureAtlas("./textures/blocks", _BLOCKS_TEXTURE, 16)
 	if err != nil {
 		return nil, fmt.Errorf("loadTextureAtlas(): %w", err)
 	}
@@ -55,24 +55,13 @@ func NewChunkRenderer(game *p_game.Game) (*chunkRenderer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("getUniformLocation(): %w", err)
 	}
-	gl.Uniform1i(textureLocation, BLOCKS_TEXTURE)
+	gl.Uniform1i(textureLocation, _BLOCKS_TEXTURE)
 
 	return &chunkRenderer{
 		game,
 		blockProgram,
 		VAO,
 	}, nil
-}
-
-func (r *chunkRenderer) deleteVBOs(chunk *p_game.Chunk) {
-	if chunk.SolidVBO != 0 {
-		gl.DeleteBuffers(1, &chunk.SolidVBO)
-		chunk.SolidVBO = 0
-	}
-	if chunk.TransparentVBO != 0 {
-		gl.DeleteBuffers(1, &chunk.TransparentVBO)
-		chunk.TransparentVBO = 0
-	}
 }
 
 func (r *chunkRenderer) updateVBOs(chunk *p_game.Chunk) {
@@ -93,6 +82,17 @@ func (r *chunkRenderer) updateVBOs(chunk *p_game.Chunk) {
 	vertices = chunk.TransparentMesh()
 	if len(vertices) > 0 {
 		gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
+	}
+}
+
+func (r *chunkRenderer) deleteVBOs(chunk *p_game.Chunk) {
+	if chunk.SolidVBO != 0 {
+		gl.DeleteBuffers(1, &chunk.SolidVBO)
+		chunk.SolidVBO = 0
+	}
+	if chunk.TransparentVBO != 0 {
+		gl.DeleteBuffers(1, &chunk.TransparentVBO)
+		chunk.TransparentVBO = 0
 	}
 }
 

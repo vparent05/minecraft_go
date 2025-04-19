@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	SKYBOX_TEXTURE = 0
-	BLOCKS_TEXTURE = 1
+	_SKYBOX_TEXTURE = 0
+	_BLOCKS_TEXTURE = 1
 )
 
 func createTexture(id uint32, xtype uint32) uint32 {

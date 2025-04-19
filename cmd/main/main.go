@@ -50,6 +50,8 @@ func main() {
 
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.CULL_FACE)
+	//gl.Enable(gl.BLEND)
+	//gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
 	game := p_game.NewGame(mgl32.Perspective(math.Pi/4, 16.0/9.0, 0.1, 2048))
 

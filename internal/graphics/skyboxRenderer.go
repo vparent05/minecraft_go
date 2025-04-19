@@ -68,7 +68,7 @@ func NewSkyboxRenderer(game *game.Game) (*skyboxRenderer, error) {
 		return nil, fmt.Errorf("gl.Init(): %w", err)
 	}
 
-	err = loadCubemap("./textures/skybox", SKYBOX_TEXTURE)
+	err = loadCubemap("./textures/skybox", _SKYBOX_TEXTURE)
 	if err != nil {
 		return nil, fmt.Errorf("loadCubemap(): %w", err)
 	}
@@ -107,7 +107,7 @@ func NewSkyboxRenderer(game *game.Game) (*skyboxRenderer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("getUniformLocation(): %w", err)
 	}
-	gl.Uniform1i(skyboxLocation, SKYBOX_TEXTURE)
+	gl.Uniform1i(skyboxLocation, _SKYBOX_TEXTURE)
 
 	return &skyboxRenderer{
 		game,

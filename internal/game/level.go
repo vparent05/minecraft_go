@@ -27,6 +27,18 @@ func NewLevel() *level {
 	}
 }
 
+func (l *level) Iterator() iter.Seq2[mgl32.Vec2, *Chunk] {
+	return func(yield func(mgl32.Vec2, *Chunk) bool) {
+		for _, pos := range l.chunks.Keys() {
+			if chunk, ok := l.chunks.Get(pos); ok {
+				if !yield(pos, chunk) {
+					return
+				}
+			}
+		}
+	}
+}
+
 func (l *level) updateChunksAround(chunkCoords *mgl32.Vec2, renderDistance *int) {
 	for chunkCoords != nil {
 		for pos, chunk := range l.Iterator() {
@@ -54,16 +66,12 @@ func (l *level) updateChunksAround(chunkCoords *mgl32.Vec2, renderDistance *int)
 	}
 }
 
-func (l *level) Iterator() iter.Seq2[mgl32.Vec2, *Chunk] {
-	return func(yield func(mgl32.Vec2, *Chunk) bool) {
-		for _, pos := range l.chunks.Keys() {
-			if chunk, ok := l.chunks.Get(pos); ok {
-				if !yield(pos, chunk) {
-					return
-				}
-			}
-		}
-	}
+func (c *Chunk) SolidMesh() []uint32 {
+	return c.solidMesh
+}
+
+func (c *Chunk) TransparentMesh() []uint32 {
+	return c.transparentMesh
 }
 
 /*
@@ -107,12 +115,4 @@ func (c *Chunk) generateMesh() {
 			c.solidMesh = append(c.solidMesh, b.mesh(x, y, z, render)...)
 		}
 	}
-}
-
-func (c *Chunk) SolidMesh() []uint32 {
-	return c.solidMesh
-}
-
-func (c *Chunk) TransparentMesh() []uint32 {
-	return c.transparentMesh
 }
