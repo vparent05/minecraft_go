@@ -10,8 +10,8 @@ type MutexMap[K comparable, V any] struct {
 	m     map[K]V
 }
 
-func NewMutexMap[K comparable, V any]() *MutexMap[K, V] {
-	return &MutexMap[K, V]{
+func NewMutexMap[K comparable, V any]() MutexMap[K, V] {
+	return MutexMap[K, V]{
 		m: make(map[K]V),
 	}
 }

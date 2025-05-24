@@ -10,6 +10,7 @@ import (
 func generateChunk(pos mgl32.Vec2) *Chunk {
 	const WATER_LEVEL = 60
 	chunk := Chunk{
+		pos,
 		[CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_WIDTH]block{},
 		nil,
 		nil,
@@ -41,11 +42,14 @@ func generateChunk(pos mgl32.Vec2) *Chunk {
 						id = 5 // dirt
 					}
 				}
-				chunk.blocks[chunkIndex(i, k, j)] = block{uint8(id), 15}
+				chunk.blocks[indexInChunk(i, k, j)] = block{uint8(id), 15}
 			}
 
-			for k := topY; k <= WATER_LEVEL; k++ {
-				chunk.blocks[chunkIndex(i, k, j)] = block{3, 13}
+			for k := topY; k < WATER_LEVEL; k++ {
+				chunk.blocks[indexInChunk(i, k, j)] = block{3, 15}
+			}
+			if topY <= WATER_LEVEL {
+				chunk.blocks[indexInChunk(i, WATER_LEVEL, j)] = block{3, 13}
 			}
 		}
 	}

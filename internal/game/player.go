@@ -22,9 +22,9 @@ type player struct {
 }
 
 func NewPlayer(game *Game) *player {
-	p := player{
+	return &player{
 		game,
-		movement.NewController(mgl32.Vec3{0, 65, 0}, 15, 15, 10),
+		movement.NewController(mgl32.Vec3{0, 65, 0}, 50, 15, 250),
 		&mgl32.Vec2{0, 0},
 		[]mgl32.Vec3{{0, 0, 0}},
 		0,
@@ -34,8 +34,6 @@ func NewPlayer(game *Game) *player {
 		16,
 		5,
 	}
-	go game.Level.updateChunksAround(p.chunkCoords, &p.renderDistance)
-	return &p
 }
 
 func (p *player) Position() mgl32.Vec3 {

@@ -47,8 +47,10 @@ func (s *shader) compile() (uint32, error) {
 		gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, &length)
 
 		log := make([]uint8, length)
-		gl.GetShaderInfoLog(shader, length, &length, &log[0])
+		if length > 0 {
+			gl.GetShaderInfoLog(shader, length, &length, &log[0])
 
+		}
 		return 0, fmt.Errorf("gl.CompileShader(): %s", string(log))
 	}
 

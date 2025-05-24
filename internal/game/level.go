@@ -12,6 +12,7 @@ const CHUNK_WIDTH = 15
 const CHUNK_HEIGHT = 255
 
 type Chunk struct {
+	coordinates     mgl32.Vec2
 	blocks          [CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_WIDTH]block // 15 * 255 * 15, index = x * 3825 + y * 15 + z
 	solidMesh       []uint32
 	transparentMesh []uint32
@@ -23,40 +24,68 @@ type Chunk struct {
 }
 
 type level struct {
-	chunks *utils.MutexMap[mgl32.Vec2, *Chunk]
+	observer *mgl32.Vec2
+	chunks   [][]*Chunk
 }
 
-func NewLevel() *level {
-	return &level{
-		chunks: utils.NewMutexMap[mgl32.Vec2, *Chunk](),
+func (l *level) originIndex() (int, int) {
+	return utils.Mod(int(l.observer.X()), len(l.chunks[0])), utils.Mod(int(l.observer.Y()), len(l.chunks))
+}
+
+func (l *level) index(coordinates mgl32.Vec2) (int, int) {
+	delta := coordinates.Sub(*l.observer)
+	originX, originZ := l.originIndex()
+	return utils.Mod(int(delta.X())+originX, len(l.chunks)), utils.Mod(int(delta.Y())+originZ, len(l.chunks[0]))
+}
+
+func (l *level) get(chunkCoordinates mgl32.Vec2) *Chunk {
+	i, j := l.index(chunkCoordinates)
+	return l.chunks[i][j]
+}
+
+func (l *level) set(chunkCoordinates mgl32.Vec2, value *Chunk) {
+	i, j := l.index(chunkCoordinates)
+	l.chunks[i][j] = value
+}
+
+func NewLevel(renderDistance int, observer *mgl32.Vec2) *level {
+	l := &level{
+		chunks:   make([][]*Chunk, renderDistance*2+1),
+		observer: observer,
 	}
+	for i := range l.chunks {
+		l.chunks[i] = make([]*Chunk, renderDistance*2+1)
+	}
+	return l
 }
 
 func (l *level) Iterator() iter.Seq2[mgl32.Vec2, *Chunk] {
 	return func(yield func(mgl32.Vec2, *Chunk) bool) {
-		for _, pos := range l.chunks.Keys() {
-			if chunk, ok := l.chunks.Get(pos); ok {
-				if !yield(pos, chunk) {
-					return
-				}
+		originX, originY := l.originIndex()
+		for _, chunk := range utils.FromOriginIterator2(l.chunks, originX, originY) {
+			if chunk == nil {
+				continue
+			}
+			if !yield(chunk.coordinates, chunk) {
+				return
 			}
 		}
 	}
 }
 
 func (l *level) positionInChunk(position mgl32.Vec3) (*Chunk, int) {
-	blockX := ((int(position.X()) % CHUNK_WIDTH) + CHUNK_WIDTH) % CHUNK_WIDTH
-	blockZ := ((int(position.Z()) % CHUNK_WIDTH) + CHUNK_WIDTH) % CHUNK_WIDTH
+	blockX := utils.Mod(int(position.X()), CHUNK_WIDTH)
+	blockZ := utils.Mod(int(position.Z()), CHUNK_WIDTH)
 	chunkPos := mgl32.Vec2{
 		(position.X() - float32(blockX)) / float32(CHUNK_WIDTH),
 		(position.Z() - float32(blockZ)) / float32(CHUNK_WIDTH),
 	}
 
-	chunk, ok := l.chunks.Get(chunkPos)
-	if !ok {
+	chunk := l.get(chunkPos)
+	if chunk == nil {
 		return nil, -1
 	}
-	index := chunkIndex(blockX, int(position.Y())%CHUNK_HEIGHT, blockZ)
+	index := indexInChunk(blockX, utils.Mod(int(position.Y()), CHUNK_HEIGHT), blockZ)
 	return chunk, index
 }
 
@@ -127,25 +156,21 @@ func (l *level) castRay(position mgl32.Vec3, orientation mgl32.Vec3, length floa
 	return nil, -1, nil, -1
 }
 
-func (l *level) updateChunksAround(chunkCoords *mgl32.Vec2, renderDistance *int) {
-	for chunkCoords != nil {
-		for pos, chunk := range l.Iterator() {
-			inRenderDistance := mgl32.Abs(pos.X()-chunkCoords.X()) <= float32(*renderDistance) &&
-				mgl32.Abs(pos.Y()-chunkCoords.Y()) <= float32(*renderDistance)
-
-			if chunk != nil && !inRenderDistance {
-				if chunk.SolidVBO == 0 && chunk.TransparentVBO == 0 {
-					l.chunks.Delete(pos)
-					continue
-				}
-				chunk.Loaded = false
+func (l *level) updateChunksAround(renderDistance *int) {
+	for l.observer != nil {
+		if len(l.chunks) != (*renderDistance)*2+1 {
+			l.chunks = make([][]*Chunk, (*renderDistance)*2+1)
+			for i := range l.chunks {
+				l.chunks[i] = make([]*Chunk, (*renderDistance)*2+1)
 			}
 		}
+
 		for x := -*renderDistance; x <= *renderDistance; x++ {
 			for z := -*renderDistance; z <= *renderDistance; z++ {
-				pos := chunkCoords.Add(mgl32.Vec2{float32(x), float32(z)})
-				if c, ok := l.chunks.Get(pos); !ok {
-					l.chunks.Set(pos, generateChunk(pos))
+				pos := l.observer.Add(mgl32.Vec2{float32(x), float32(z)})
+
+				if c := l.get(pos); c == nil || pos != c.coordinates {
+					l.set(pos, generateChunk(pos))
 				} else {
 					c.Loaded = true
 				}
@@ -170,7 +195,7 @@ func visible(id1, id2 uint8) bool {
 		BLOCK_TYPES[id1].isTransparent && id1 != id2
 }
 
-func chunkIndex(x, y, z int) int {
+func indexInChunk(x, y, z int) int {
 	return x*CHUNK_WIDTH*CHUNK_HEIGHT + y*CHUNK_WIDTH + z
 }
 
@@ -187,14 +212,14 @@ func (c *Chunk) generateMesh() {
 
 		render := [6]bool{
 			// (middle AND visible) OR edge
-			y+1 < CHUNK_HEIGHT && visible(c.blocks[chunkIndex(x, y+1, z)].id, b.id) || y+1 >= CHUNK_HEIGHT,
-			y-1 >= 0 && visible(c.blocks[chunkIndex(x, y-1, z)].id, b.id) || y-1 < 0,
+			y+1 < CHUNK_HEIGHT && visible(c.blocks[indexInChunk(x, y+1, z)].id, b.id) || y+1 >= CHUNK_HEIGHT,
+			y-1 >= 0 && visible(c.blocks[indexInChunk(x, y-1, z)].id, b.id) || y-1 < 0,
 
 			// (middle AND (visible OR different height level)) OR edge
-			x-1 >= 0 && (visible(c.blocks[chunkIndex(x-1, y, z)].id, b.id) || c.blocks[chunkIndex(x-1, y, z)].level != b.level) || x-1 < 0,
-			x+1 < CHUNK_WIDTH && (visible(c.blocks[chunkIndex(x+1, y, z)].id, b.id) || c.blocks[chunkIndex(x+1, y, z)].level != b.level) || x+1 >= CHUNK_WIDTH,
-			z+1 < CHUNK_WIDTH && (visible(c.blocks[chunkIndex(x, y, z+1)].id, b.id) || c.blocks[chunkIndex(x, y, z+1)].level != b.level) || z+1 >= CHUNK_WIDTH,
-			z-1 >= 0 && (visible(c.blocks[chunkIndex(x, y, z-1)].id, b.id) || c.blocks[chunkIndex(x, y, z-1)].level != b.level) || z-1 < 0,
+			x-1 >= 0 && (visible(c.blocks[indexInChunk(x-1, y, z)].id, b.id) || c.blocks[indexInChunk(x-1, y, z)].level != b.level) || x-1 < 0,
+			x+1 < CHUNK_WIDTH && (visible(c.blocks[indexInChunk(x+1, y, z)].id, b.id) || c.blocks[indexInChunk(x+1, y, z)].level != b.level) || x+1 >= CHUNK_WIDTH,
+			z+1 < CHUNK_WIDTH && (visible(c.blocks[indexInChunk(x, y, z+1)].id, b.id) || c.blocks[indexInChunk(x, y, z+1)].level != b.level) || z+1 >= CHUNK_WIDTH,
+			z-1 >= 0 && (visible(c.blocks[indexInChunk(x, y, z-1)].id, b.id) || c.blocks[indexInChunk(x, y, z-1)].level != b.level) || z-1 < 0,
 		}
 
 		if BLOCK_TYPES[b.id].isTransparent {
