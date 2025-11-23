@@ -1,23 +1,36 @@
 package game
 
 import (
+	"time"
+
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/vparent05/minecraft_go/internal/level"
 )
 
 type Game struct {
 	Player     *player
-	Level      *level
+	Level      *level.Level
 	Projection mgl32.Mat4
 	View       mgl32.Mat4
 }
 
 func NewGame(projection mgl32.Mat4) *Game {
-	game := Game{}
-	game.Projection = projection
+	g := Game{}
+	g.Projection = projection
 
-	game.Player = NewPlayer(&game)
-	game.Level = NewLevel(game.Player.renderDistance, game.Player.chunkCoords)
-	go game.Level.updateChunksAround(&game.Player.renderDistance)
+	g.Player = NewPlayer(&g)
+	g.Level = level.NewLevel(g.Player.updates)
 
-	return &game
+	t := time.NewTicker(50 * time.Millisecond)
+	go func() {
+		for range t.C {
+			g.Tick()
+		}
+	}()
+
+	return &g
+}
+
+func (g *Game) Tick() {
+	g.Level.GameTick()
 }

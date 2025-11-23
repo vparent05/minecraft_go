@@ -3,14 +3,16 @@ package main
 import (
 	"fmt"
 	"math"
+	"net/http"
+	_ "net/http/pprof"
 	"runtime"
-	"time"
 
 	"github.com/go-gl/gl/v4.6-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
 	p_game "github.com/vparent05/minecraft_go/internal/game"
 	"github.com/vparent05/minecraft_go/internal/graphics"
+	"github.com/vparent05/minecraft_go/internal/level"
 )
 
 func checkGLError() {
@@ -28,6 +30,10 @@ func init() {
 }
 
 func main() {
+	go func() {
+		http.ListenAndServe("localhost:6060", nil)
+	}()
+
 	err := glfw.Init()
 	if err != nil {
 		panic(fmt.Errorf("glfw.Init(): %w", err))
@@ -53,6 +59,7 @@ func main() {
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
+	level.LoadBlocks()
 	game := p_game.NewGame(mgl32.Perspective(math.Pi/4, 16.0/9.0, 0.1, 2048))
 
 	chunkRenderer, err := graphics.NewChunkRenderer(game)
@@ -65,23 +72,16 @@ func main() {
 		panic(fmt.Errorf("graphics.NewSkyboxRenderer(): %w", err))
 	}
 
-	p_game.LoadBlocks()
-
 	lastFrame := glfw.GetTime()
 	var deltaTime float64
 	var currentTime float64
-
-	go func() {
-		for {
-			fmt.Printf("FPS: %.2f\n", 1.0/deltaTime)
-			time.Sleep(time.Second)
-		}
-	}()
 
 	for !window.ShouldClose() {
 		currentTime = glfw.GetTime()
 		deltaTime = currentTime - lastFrame
 		lastFrame = currentTime
+
+		fmt.Printf("FPS: %.2f\n", 1.0/deltaTime)
 
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
@@ -99,7 +99,7 @@ func main() {
 
 		window.SwapBuffers()
 		glfw.PollEvents()
-		game.Player.ProcessInputs(float32(deltaTime))
+		game.Player.FrameTick(float32(deltaTime))
 		checkGLError()
 	}
 }

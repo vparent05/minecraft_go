@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/go-gl/gl/v4.6-core/gl"
+	"github.com/vparent05/minecraft_go/internal/level"
 )
 
 const (
@@ -95,7 +96,7 @@ func loadCubemap(path string, id uint32) error {
 Creates and loads the texture atlas in the "id" tray
 "Path" is the path to a folder containing .png files
 */
-func loadTextureAtlas(path string, id uint32, resolution int) (map[string]uint8, error) {
+func loadTextureAtlas(path string, id uint32, resolution int) (map[string]level.BlockId, error) {
 	createTexture(id, gl.TEXTURE_2D)
 
 	textures, err := os.ReadDir(path)
@@ -103,7 +104,7 @@ func loadTextureAtlas(path string, id uint32, resolution int) (map[string]uint8,
 		return nil, fmt.Errorf("os.ReadDir(): %w", err)
 	}
 
-	atlasMap := make(map[string]uint8)
+	atlasMap := make(map[string]level.BlockId)
 	images := make([]image.Image, 0)
 	for i, texture := range textures {
 		imgFile, err := os.Open(fmt.Sprintf("%s/%s", path, texture.Name()))
@@ -115,7 +116,7 @@ func loadTextureAtlas(path string, id uint32, resolution int) (map[string]uint8,
 		if err != nil {
 			return nil, fmt.Errorf("image.Decode(): %w", err)
 		}
-		atlasMap[texture.Name()] = uint8(i)
+		atlasMap[texture.Name()] = level.BlockId(i)
 
 		images = append(images, imageToRGBA(img))
 	}
