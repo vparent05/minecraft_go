@@ -8,6 +8,7 @@ import (
 	p_game "github.com/vparent05/minecraft_go/internal/game"
 	"github.com/vparent05/minecraft_go/internal/level"
 	"github.com/vparent05/minecraft_go/internal/utils"
+	"github.com/vparent05/minecraft_go/internal/utils/chanx"
 )
 
 type chunkData struct {
@@ -73,6 +74,16 @@ func NewChunkRenderer(game *p_game.Game) (*chunkRenderer, error) {
 		VAO,
 		make([]chunkData, 33*33), // TODO actually link the render distance to the size of the slice
 	}, nil
+}
+
+func (r *chunkRenderer) applyMeshUpdate(chunk *level.Chunk) {
+	_, ok := chanx.TryReceive(chunk.MeshUpdates)
+	if ok {
+		newMesh := chunk.Mesh.Load()
+		r.chunksData[chunk.Slot].solidCount = len(newMesh.Solid)
+		r.chunksData[chunk.Slot].transparentCount = len(newMesh.Transparent)
+		r.updateVBOs(chunk, newMesh)
+	}
 }
 
 func (r *chunkRenderer) updateVBOs(chunk *level.Chunk, newMesh level.ChunkMesh) {
@@ -164,15 +175,6 @@ func (r *chunkRenderer) Draw() error {
 		}
 	}
 	return nil
-}
-
-func (r *chunkRenderer) applyMeshUpdate(chunk *level.Chunk) {
-	update, ok := chunk.MeshUpdates.TryReceive()
-	if ok {
-		r.chunksData[chunk.Slot].solidCount = len(update.Solid)
-		r.chunksData[chunk.Slot].transparentCount = len(update.Transparent)
-		r.updateVBOs(chunk, update)
-	}
 }
 
 func intVector2ToFloat32Slice(v utils.IntVector2) []float32 {

@@ -1,8 +1,6 @@
 package game
 
 import (
-	"time"
-
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/vparent05/minecraft_go/internal/level"
 )
@@ -19,18 +17,12 @@ func NewGame(projection mgl32.Mat4) *Game {
 	g.Projection = projection
 
 	g.Player = NewPlayer(&g)
-	g.Level = level.NewLevel(g.Player.updates)
-
-	t := time.NewTicker(50 * time.Millisecond)
-	go func() {
-		for range t.C {
-			g.Tick()
-		}
-	}()
+	g.Level = level.NewLevel(g.Player.levelObserver)
+	go g.Level.GenerateAround() // TODO manage this goroutine (don't leave it hanging)
 
 	return &g
 }
 
-func (g *Game) Tick() {
-	g.Level.GameTick()
+func (g *Game) FrameTick(deltaTime float32) {
+	g.Player.FrameTick(deltaTime)
 }

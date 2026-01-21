@@ -8,6 +8,8 @@ import (
 
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/vparent05/minecraft_go/internal/utils"
+	"github.com/vparent05/minecraft_go/internal/utils/atomicx"
+	"github.com/vparent05/minecraft_go/internal/utils/chanx"
 )
 
 const CHUNK_WIDTH = 15
@@ -27,14 +29,16 @@ type Chunk struct {
 	Slot        int
 
 	Dirty       atomic.Bool
-	MeshUpdates *utils.UpdateChannel[ChunkMesh]
+	Mesh        *atomicx.Value[ChunkMesh]
+	MeshUpdates chan struct{}
 }
 
 func newChunk(coordinates utils.IntVector2) *Chunk {
 	c := &Chunk{
 		coordinates: coordinates,
 		observer:    utils.IntVector3{}, // TODO properly set
-		MeshUpdates: utils.NewUpdateChannel[ChunkMesh](),
+		Mesh:        &atomicx.Value[ChunkMesh]{},
+		MeshUpdates: make(chan struct{}, 1),
 	}
 	c.Dirty.Store(true)
 	return c
@@ -54,7 +58,7 @@ func (c *Chunk) generateMesh() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	update := ChunkMesh{make([]uint32, 0), make([]uint32, 0)}
+	mesh := ChunkMesh{make([]uint32, 0), make([]uint32, 0)}
 
 	for pos, b := range c.iter() {
 		if b == AIR {
@@ -77,13 +81,14 @@ func (c *Chunk) generateMesh() {
 		}
 
 		if BLOCK_TYPES[b].isTransparent {
-			update.Transparent = append(update.Transparent, b.mesh(x, y, z, render)...)
+			mesh.Transparent = append(mesh.Transparent, b.mesh(x, y, z, render)...)
 		} else {
-			update.Solid = append(update.Solid, b.mesh(x, y, z, render)...)
+			mesh.Solid = append(mesh.Solid, b.mesh(x, y, z, render)...)
 		}
 	}
 
-	c.MeshUpdates.Send(update)
+	c.Mesh.Store(mesh)
+	chanx.TrySend(c.MeshUpdates, struct{}{})
 
 	c.Dirty.Store(false)
 }

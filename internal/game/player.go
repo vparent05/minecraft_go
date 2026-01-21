@@ -2,37 +2,44 @@ package game
 
 import (
 	"math"
+	"time"
 
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/vparent05/minecraft_go/internal/level"
 	"github.com/vparent05/minecraft_go/internal/movement"
-	"github.com/vparent05/minecraft_go/internal/utils"
+	"github.com/vparent05/minecraft_go/internal/utils/atomicx"
+	"github.com/vparent05/minecraft_go/internal/utils/chanx"
+	"github.com/vparent05/minecraft_go/internal/utils/debounce"
 )
 
 type player struct {
 	*movement.EntityController
-	game           *Game
-	cameraOffsets  []mgl32.Vec3
-	selectedCamera int
-	renderDistance int
-	reach          float32
-	updates        *utils.UpdateChannel[level.LevelObserver]
+	game                 *Game
+	cameraOffsets        []mgl32.Vec3
+	selectedCamera       int
+	renderDistance       int
+	reach                float32
+	levelObserver        *atomicx.Value[level.LevelObserver]
+	levelObserverUpdates chan struct{}
+
+	blockAction *debounce.Debounce
 }
 
 func NewPlayer(game *Game) *player {
 	p := &player{
-		movement.NewEntityController(mgl32.Vec3{0, 65, 0}, 1000, 1000, 5000, 0, 0, 4*math.Pi/9),
-		game,
-		[]mgl32.Vec3{{0, 0, 0}},
-		0,
-		16,
-		5,
-		utils.NewUpdateChannel[level.LevelObserver](),
+		EntityController:     movement.NewEntityController(mgl32.Vec3{0, 65, 0}, 1000, 1000, 5000, 0, 0, 4*math.Pi/9),
+		game:                 game,
+		cameraOffsets:        []mgl32.Vec3{{0, 0, 0}},
+		selectedCamera:       0,
+		renderDistance:       16,
+		reach:                16,
+		levelObserver:        &atomicx.Value[level.LevelObserver]{},
+		levelObserverUpdates: make(chan struct{}, 1),
+		blockAction:          debounce.NewDebounce(100 * time.Millisecond),
 	}
 
-	p.updates.Send(p.asLevelObserver())
-
+	p.levelObserver.Store(p.asLevelObserver())
 	return p
 }
 
@@ -79,14 +86,20 @@ func (p *player) FrameTick(deltaTime float32) {
 	p.UpdateOrientation(mgl32.Vec2{(float32(width/2) - float32(xpos)) / 1000, (float32(height)/2 - float32(ypos)) / 1000})
 	p.UpdatePosition(directions, deltaTime)
 
-	p.updates.Send(p.asLevelObserver())
+	p.levelObserver.Store(p.asLevelObserver())
+	chanx.TrySend(p.levelObserverUpdates, struct{}{})
 
 	if glfw.GetCurrentContext().GetMouseButton(glfw.MouseButton1) == glfw.Press {
 		targeted, _ := p.game.Level.CastRay(p.CameraPosition(), p.Orientation(), p.reach)
-		targeted.Set(level.AIR)
+		if targeted != nil {
+			p.blockAction.Do(func() { targeted.Set(level.AIR) })
+		}
 	}
+
 	if glfw.GetCurrentContext().GetMouseButton(glfw.MouseButton2) == glfw.Press {
 		_, front := p.game.Level.CastRay(p.CameraPosition(), p.Orientation(), p.reach)
-		front.Set(level.STONE)
+		if front != nil {
+			p.blockAction.Do(func() { front.Set(level.STONE) })
+		}
 	}
 }

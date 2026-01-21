@@ -99,7 +99,7 @@ func main() {
 
 		window.SwapBuffers()
 		glfw.PollEvents()
-		game.Player.FrameTick(float32(deltaTime))
+		game.FrameTick(float32(deltaTime))
 		checkGLError()
 	}
 }
