@@ -91,16 +91,16 @@ func (l *Level) Chunks() iter.Seq2[utils.IntVector2, *Chunk] {
 	}
 }
 
-func (l *Level) getBlockPosition(position mgl32.Vec3) blockPosition {
+func (l *Level) getBlockPosition(position mgl32.Vec3) *blockPosition {
 	blockX := utils.Mod(int(position.X()), CHUNK_WIDTH)
 	blockZ := utils.Mod(int(position.Z()), CHUNK_WIDTH)
 
 	chunk := l.getChunk(LevelToChunkCoords(position))
 	if chunk == nil {
-		return blockPosition{nil, utils.IntVector3{}}
+		return &blockPosition{nil, utils.IntVector3{}}
 	}
 
-	return blockPosition{chunk, utils.IntVector3{X: blockX, Y: utils.Mod(int(position.Y()), CHUNK_HEIGHT), Z: blockZ}}
+	return &blockPosition{chunk, utils.IntVector3{X: blockX, Y: utils.Mod(int(position.Y()), CHUNK_HEIGHT), Z: blockZ}}
 }
 
 func t(from, offset, orientation float32) float32 {
@@ -160,10 +160,10 @@ func (l *Level) CastRay(position mgl32.Vec3, orientation mgl32.Vec3, length floa
 			// if front block exists, return targeted block and front block
 			front := l.getBlockPosition(previousBlockPos)
 			if _, ok = front.Get(); ok {
-				return &targeted, &front
+				return targeted, front
 			}
 
-			return &targeted, nil
+			return targeted, nil
 		}
 	}
 	return nil, nil
@@ -201,7 +201,6 @@ func (l *Level) GenerateAround() {
 			newObserverChunkCoords := LevelToChunkCoords(l.observerCache.Vec3)
 			if newObserverChunkCoords != observerChunkCoords {
 				// Observer changed chunks, cut our losses to regenerate around the new center
-				// TODO also need to break on new dirty chunk
 				break
 			}
 
@@ -209,10 +208,10 @@ func (l *Level) GenerateAround() {
 			zOffset := i[1] - l.observerCache.RenderDistance
 			pos := utils.IntVector2{X: xOffset + observerChunkCoords.X, Y: zOffset + observerChunkCoords.Y}
 			if c := l.getChunk(pos); c == nil || pos != c.coordinates {
-				c = generateChunk(pos)
+				c = generateChunk(pos, l.observer)
 				l.setChunk(pos, c)
-			} else if c.Dirty.Load() {
-				c.generateMesh()
+			} else if c.dirty.Load() {
+				c.generateMesh(l)
 			}
 		}
 	}

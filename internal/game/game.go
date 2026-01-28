@@ -18,9 +18,12 @@ func NewGame(projection mgl32.Mat4) *Game {
 
 	g.Player = NewPlayer(&g)
 	g.Level = level.NewLevel(g.Player.levelObserver)
-	go g.Level.GenerateAround() // TODO manage this goroutine (don't leave it hanging)
 
 	return &g
+}
+
+func (g *Game) Start() {
+	go g.Level.GenerateAround() // TODO manage this goroutine (don't leave it hanging)
 }
 
 func (g *Game) FrameTick(deltaTime float32) {

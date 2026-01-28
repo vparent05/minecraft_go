@@ -168,12 +168,15 @@ func (r *chunkRenderer) Draw() error {
 	}
 
 	// draw transparent geometry
+	gl.DepthMask(false)
+	defer gl.DepthMask(true)
 	for pos, chunk := range r.game.Level.Chunks() {
 		err = r.draw(r.chunksData[chunk.Slot].transparentVBO, pos, r.chunksData[chunk.Slot].transparentCount)
 		if err != nil {
 			return fmt.Errorf("draw(): %w", err)
 		}
 	}
+
 	return nil
 }
 

@@ -72,6 +72,8 @@ func main() {
 		panic(fmt.Errorf("graphics.NewSkyboxRenderer(): %w", err))
 	}
 
+	game.Start()
+
 	lastFrame := glfw.GetTime()
 	var deltaTime float64
 	var currentTime float64
@@ -81,7 +83,7 @@ func main() {
 		deltaTime = currentTime - lastFrame
 		lastFrame = currentTime
 
-		fmt.Printf("FPS: %.2f\n", 1.0/deltaTime)
+		//fmt.Printf("FPS: %.2f\n", 1.0/deltaTime)
 
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 

@@ -5,6 +5,7 @@ import (
 	"math"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/vparent05/minecraft_go/internal/utils"
@@ -22,31 +23,46 @@ type ChunkMesh struct {
 
 // Using the exported members of Chunk is fully thread safe
 type Chunk struct {
-	mu          sync.Mutex
-	coordinates utils.IntVector2
-	observer    utils.IntVector3 // Coordinates of the block closest to the level observer in the chunk TODO use it
-	blocks      [CHUNK_WIDTH][CHUNK_HEIGHT][CHUNK_WIDTH]BlockId
-	Slot        int
+	mu            sync.Mutex
+	coordinates   utils.IntVector2
+	observer      *atomicx.Value[LevelObserver] // Coordinates of the block closest to the level observer in the chunk
+	observerCache utils.IntVector3
+	blocks        [CHUNK_WIDTH][CHUNK_HEIGHT][CHUNK_WIDTH]BlockId
+	Slot          int
 
-	Dirty       atomic.Bool
+	dirty       atomic.Bool
 	Mesh        *atomicx.Value[ChunkMesh]
 	MeshUpdates chan struct{}
 }
 
-func newChunk(coordinates utils.IntVector2) *Chunk {
+func newChunk(coordinates utils.IntVector2, observer *atomicx.Value[LevelObserver]) *Chunk {
 	c := &Chunk{
 		coordinates: coordinates,
-		observer:    utils.IntVector3{}, // TODO properly set
+		observer:    observer,
 		Mesh:        &atomicx.Value[ChunkMesh]{},
 		MeshUpdates: make(chan struct{}, 1),
 	}
-	c.Dirty.Store(true)
+	c.dirty.Store(true)
+
+	go func() {
+		for {
+			c.updateObserverCache()
+			time.Sleep(500 * time.Millisecond)
+		}
+	}()
 	return c
 }
 
 func (c *Chunk) iter() iter.Seq2[utils.IntVector3, BlockId] {
 	return func(yield func(utils.IntVector3, BlockId) bool) {
-		for pos, b := range utils.UnsafeFromOriginIterator3(&c.blocks[0][0][0], utils.IntVector3{X: CHUNK_WIDTH, Y: CHUNK_HEIGHT, Z: CHUNK_WIDTH}, c.observer) {
+		for pos, b := range utils.UnsafeFromOriginIterator3(
+			&c.blocks[0][0][0],
+			utils.IntVector3{X: c.coordinates.X * CHUNK_WIDTH, Y: 0, Z: c.coordinates.Y * CHUNK_WIDTH},                        // Start
+			utils.IntVector3{X: (c.coordinates.X + 1) * CHUNK_WIDTH, Y: CHUNK_HEIGHT, Z: (c.coordinates.Y + 1) * CHUNK_WIDTH}, // End
+			utils.IntVector3{X: CHUNK_WIDTH, Y: CHUNK_HEIGHT, Z: CHUNK_WIDTH},                                                 // Size
+			c.observerCache, // Origin
+		) {
+
 			if !yield(pos, b) {
 				return
 			}
@@ -54,7 +70,11 @@ func (c *Chunk) iter() iter.Seq2[utils.IntVector3, BlockId] {
 	}
 }
 
-func (c *Chunk) generateMesh() {
+func visibleOrDifferentHeightLevel(a, b BlockId) bool {
+	return visible(a, b) || BLOCK_TYPES[a].height != BLOCK_TYPES[b].height
+}
+
+func (c *Chunk) generateMesh(level *Level) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -68,16 +88,37 @@ func (c *Chunk) generateMesh() {
 		y := pos.Y
 		z := pos.Z
 
-		render := [6]bool{
-			// (middle AND visible) OR edge
-			y+1 < CHUNK_HEIGHT && visible(c.blocks[x][y+1][z], b) || y+1 >= CHUNK_HEIGHT,
-			y-1 >= 0 && visible(c.blocks[x][y-1][z], b) || y-1 < 0,
+		render := [6]bool{}
 
-			// (middle AND (visible OR different height level)) OR edge
-			x-1 >= 0 && (visible(c.blocks[x-1][y][z], b) || BLOCK_TYPES[c.blocks[x-1][y][z]].height != BLOCK_TYPES[b].height) || x-1 < 0,
-			x+1 < CHUNK_WIDTH && (visible(c.blocks[x+1][y][z], b) || BLOCK_TYPES[c.blocks[x+1][y][z]].height != BLOCK_TYPES[b].height) || x+1 >= CHUNK_WIDTH,
-			z+1 < CHUNK_WIDTH && (visible(c.blocks[x][y][z+1], b) || BLOCK_TYPES[c.blocks[x][y][z+1]].height != BLOCK_TYPES[b].height) || z+1 >= CHUNK_WIDTH,
-			z-1 >= 0 && (visible(c.blocks[x][y][z-1], b) || BLOCK_TYPES[c.blocks[x][y][z-1]].height != BLOCK_TYPES[b].height) || z-1 < 0,
+		// (middle AND visible) OR edge
+		render[0] = y+1 < CHUNK_HEIGHT && visible(c.blocks[x][y+1][z], b) || y+1 >= CHUNK_HEIGHT
+		render[1] = y-1 >= 0 && visible(c.blocks[x][y-1][z], b) || y-1 < 0
+
+		// visible OR different height level
+		levelX := c.coordinates.X*CHUNK_WIDTH + x
+		levelZ := c.coordinates.Y*CHUNK_WIDTH + z
+		if x-1 >= 0 {
+			render[2] = visibleOrDifferentHeightLevel(c.blocks[x-1][y][z], b)
+		} else if a, ok := level.getBlockPosition(mgl32.Vec3{float32(levelX - 1), float32(y), float32(levelZ)}).Get(); ok {
+			render[2] = visibleOrDifferentHeightLevel(a, b)
+		}
+
+		if x+1 < CHUNK_WIDTH {
+			render[3] = visibleOrDifferentHeightLevel(c.blocks[x+1][y][z], b)
+		} else if a, ok := level.getBlockPosition(mgl32.Vec3{float32(levelX + 1), float32(y), float32(levelZ)}).Get(); ok {
+			render[3] = visibleOrDifferentHeightLevel(a, b)
+		}
+
+		if z+1 < CHUNK_WIDTH {
+			render[4] = visibleOrDifferentHeightLevel(c.blocks[x][y][z+1], b)
+		} else if a, ok := level.getBlockPosition(mgl32.Vec3{float32(levelX), float32(y), float32(levelZ + 1)}).Get(); ok {
+			render[4] = visibleOrDifferentHeightLevel(a, b)
+		}
+
+		if z-1 >= 0 {
+			render[5] = visibleOrDifferentHeightLevel(c.blocks[x][y][z-1], b)
+		} else if a, ok := level.getBlockPosition(mgl32.Vec3{float32(levelX), float32(y), float32(levelZ - 1)}).Get(); ok {
+			render[5] = visibleOrDifferentHeightLevel(a, b)
 		}
 
 		if BLOCK_TYPES[b].isTransparent {
@@ -90,19 +131,22 @@ func (c *Chunk) generateMesh() {
 	c.Mesh.Store(mesh)
 	chanx.TrySend(c.MeshUpdates, struct{}{})
 
-	c.Dirty.Store(false)
+	c.dirty.Store(false)
 }
 
-func (c *Chunk) setObserver(observer mgl32.Vec3) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (c *Chunk) updateObserverCache() {
+	observer := c.observer.Load().Vec3
 
-	c.observer = utils.IntVector3{
+	newObserverCache := utils.IntVector3{
 		X: int(math.Floor(math.Max(math.Min(float64(observer.X()), float64((c.coordinates.X+1)*CHUNK_WIDTH)), float64(c.coordinates.X*CHUNK_WIDTH)))),
-		Y: int(math.Floor(float64(observer.Y()))),
+		Y: int(math.Floor(math.Max(math.Min(float64(observer.Y()), CHUNK_HEIGHT), 0))),
 		Z: int(math.Floor(math.Max(math.Min(float64(observer.Z()), float64((c.coordinates.Y+1)*CHUNK_WIDTH)), float64(c.coordinates.Y*CHUNK_WIDTH)))),
 	}
-	c.Dirty.Store(true)
+
+	if c.observerCache != newObserverCache {
+		c.observerCache = newObserverCache
+		c.dirty.Store(true)
+	}
 }
 
 func (c *Chunk) getBlock(coordinates utils.IntVector3) BlockId {
@@ -117,5 +161,5 @@ func (c *Chunk) setBlock(coordinates utils.IntVector3, value BlockId) {
 	defer c.mu.Unlock()
 
 	c.blocks[coordinates.X][coordinates.Y][coordinates.Z] = value
-	c.Dirty.Store(true)
+	c.dirty.Store(true)
 }

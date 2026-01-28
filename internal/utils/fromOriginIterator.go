@@ -39,22 +39,21 @@ func FromOriginIterator2[T any](values [][]T, origin IntVector2) iter.Seq2[IntVe
 	}
 }
 
-func UnsafeFromOriginIterator1[T any](values *T, size int, elementSize uintptr, origin int) iter.Seq2[int, *T] {
+func UnsafeFromOriginIterator1[T any](values *T, elementSize uintptr, start int, end int, size int, origin int) iter.Seq2[int, *T] {
 	return func(yield func(int, *T) bool) {
-		length := size
 		base := uintptr(unsafe.Pointer(values))
 
-		// left [ origin - width/2, origin [
-		for virtualI := origin - length/2; virtualI < origin; virtualI++ {
-			i := Mod(virtualI, length)
+		// left [ start, origin [
+		for virtualI := start; virtualI < origin; virtualI++ {
+			i := Mod(virtualI, size)
 			if !yield(i, (*T)(unsafe.Pointer(base+uintptr(i)*elementSize))) {
 				return
 			}
 		}
 
-		// right [ origin + width/2, origin ]
-		for virtualI := origin + length/2; virtualI >= origin; virtualI-- {
-			i := Mod(virtualI, length)
+		// right [ end, origin ]
+		for virtualI := end - 1; virtualI >= origin; virtualI-- {
+			i := Mod(virtualI, size)
 			if !yield(i, (*T)(unsafe.Pointer(base+uintptr(i)*elementSize))) {
 				return
 			}
@@ -62,11 +61,11 @@ func UnsafeFromOriginIterator1[T any](values *T, size int, elementSize uintptr, 
 	}
 }
 
-func UnsafeFromOriginIterator3[T any](values *T, size, origin IntVector3) iter.Seq2[IntVector3, T] {
+func UnsafeFromOriginIterator3[T any](values *T, start, end, size, origin IntVector3) iter.Seq2[IntVector3, T] {
 	return func(yield func(IntVector3, T) bool) {
-		for i, slice := range UnsafeFromOriginIterator1(values, size.X, uintptr(size.Y)*uintptr(size.Z)*unsafe.Sizeof(*values), origin.X) {
-			for j, row := range UnsafeFromOriginIterator1(slice, size.Y, uintptr(size.Z)*unsafe.Sizeof(*values), origin.Y) {
-				for k, t := range UnsafeFromOriginIterator1(row, size.Z, unsafe.Sizeof(*values), origin.Z) {
+		for i, slice := range UnsafeFromOriginIterator1(values, uintptr(size.Y)*uintptr(size.Z)*unsafe.Sizeof(*values), start.X, end.X, size.X, origin.X) {
+			for j, row := range UnsafeFromOriginIterator1(slice, uintptr(size.Z)*unsafe.Sizeof(*values), start.Y, end.Y, size.Y, origin.Y) {
+				for k, t := range UnsafeFromOriginIterator1(row, unsafe.Sizeof(*values), start.Z, end.Z, size.Z, origin.Z) {
 					if !yield(IntVector3{i, j, k}, *t) {
 						return
 					}

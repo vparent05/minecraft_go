@@ -4,11 +4,12 @@ import (
 	"math"
 
 	"github.com/vparent05/minecraft_go/internal/utils"
+	"github.com/vparent05/minecraft_go/internal/utils/atomicx"
 )
 
-func generateChunk(pos utils.IntVector2) *Chunk {
+func generateChunk(pos utils.IntVector2, observer *atomicx.Value[LevelObserver]) *Chunk {
 	const WATER_LEVEL = 60
-	chunk := newChunk(pos)
+	chunk := newChunk(pos, observer)
 
 	for i := range CHUNK_WIDTH {
 		for j := range CHUNK_WIDTH {
@@ -42,6 +43,6 @@ func generateChunk(pos utils.IntVector2) *Chunk {
 			}
 		}
 	}
-	chunk.generateMesh()
+
 	return chunk
 }
