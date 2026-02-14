@@ -187,7 +187,7 @@ func (l *Level) updateGenerateOrder() {
 func (l *Level) GenerateAround() {
 	l.observerCache = l.observer.Load()
 	generator := newMeshGenerator(l, l.observerCache.RenderDistance) // TODO update render distance dynamically
-	//generator.start(WORKER_COUNT)
+	generator.start(WORKER_COUNT)
 
 	for {
 		if len(l.chunks) != l.observerCache.RenderDistance*2+1 {
