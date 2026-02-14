@@ -7,6 +7,7 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/vparent05/minecraft_go/internal/utils"
 	"github.com/vparent05/minecraft_go/internal/utils/atomicx"
+	"github.com/vparent05/minecraft_go/internal/utils/chanx"
 )
 
 type blockPosition struct {
@@ -185,6 +186,8 @@ func (l *Level) updateGenerateOrder() {
 
 func (l *Level) GenerateAround() {
 	l.observerCache = l.observer.Load()
+	generator := newMeshGenerator(l, l.observerCache.RenderDistance) // TODO update render distance dynamically
+	//generator.start(WORKER_COUNT)
 
 	for {
 		if len(l.chunks) != l.observerCache.RenderDistance*2+1 {
@@ -208,10 +211,14 @@ func (l *Level) GenerateAround() {
 			zOffset := i[1] - l.observerCache.RenderDistance
 			pos := utils.IntVector2{X: xOffset + observerChunkCoords.X, Y: zOffset + observerChunkCoords.Y}
 			if c := l.getChunk(pos); c == nil || pos != c.coordinates {
-				c = generateChunk(pos, l.observer)
+				if c == nil {
+					c = newChunk(generator, l.observer)
+				}
+
+				c.Mesh.Store(ChunkMesh{make([]uint32, 0), make([]uint32, 0)})
+				chanx.TrySend(c.MeshUpdates, struct{}{})
+				generateChunk(c, pos)
 				l.setChunk(pos, c)
-			} else if c.dirty.Load() {
-				c.generateMesh(l)
 			}
 		}
 	}

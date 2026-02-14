@@ -4,12 +4,11 @@ import (
 	"math"
 
 	"github.com/vparent05/minecraft_go/internal/utils"
-	"github.com/vparent05/minecraft_go/internal/utils/atomicx"
 )
 
-func generateChunk(pos utils.IntVector2, observer *atomicx.Value[LevelObserver]) *Chunk {
+func generateChunk(chunk *Chunk, pos utils.IntVector2) {
 	const WATER_LEVEL = 60
-	chunk := newChunk(pos, observer)
+	var blocks [CHUNK_WIDTH][CHUNK_HEIGHT][CHUNK_WIDTH]BlockId
 
 	for i := range CHUNK_WIDTH {
 		for j := range CHUNK_WIDTH {
@@ -32,17 +31,17 @@ func generateChunk(pos utils.IntVector2, observer *atomicx.Value[LevelObserver])
 						id = DIRT // dirt
 					}
 				}
-				chunk.blocks[i][k][j] = id
+				blocks[i][k][j] = id
 			}
 
 			for k := topY; k < WATER_LEVEL; k++ {
-				chunk.blocks[i][k][j] = WATER
+				blocks[i][k][j] = WATER
 			}
 			if topY <= WATER_LEVEL {
-				chunk.blocks[i][WATER_LEVEL][j] = WATER
+				blocks[i][WATER_LEVEL][j] = WATER
 			}
 		}
 	}
 
-	return chunk
+	chunk.setContent(pos, blocks)
 }

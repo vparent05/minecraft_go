@@ -28,7 +28,7 @@ type player struct {
 
 func NewPlayer(game *Game) *player {
 	p := &player{
-		EntityController:     movement.NewEntityController(mgl32.Vec3{0, 65, 0}, 1000, 1000, 500, 0, 0, 4*math.Pi/9),
+		EntityController:     movement.NewEntityController(mgl32.Vec3{0, 65, 0}, 1000, 1000, 70, 0, 0, 4*math.Pi/9),
 		game:                 game,
 		cameraOffsets:        []mgl32.Vec3{{0, 0, 0}},
 		selectedCamera:       0,
