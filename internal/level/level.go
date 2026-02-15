@@ -7,7 +7,6 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/vparent05/minecraft_go/internal/utils"
 	"github.com/vparent05/minecraft_go/internal/utils/atomicx"
-	"github.com/vparent05/minecraft_go/internal/utils/chanx"
 )
 
 type blockPosition struct {
@@ -186,8 +185,11 @@ func (l *Level) updateGenerateOrder() {
 
 func (l *Level) GenerateAround() {
 	l.observerCache = l.observer.Load()
-	generator := newMeshGenerator(l, l.observerCache.RenderDistance) // TODO update render distance dynamically
-	generator.start(WORKER_COUNT)
+	meshBuilder := newMeshBuilder(l, l.observerCache.RenderDistance) // TODO update render distance dynamically
+	meshBuilder.start(MESH_BUILDING_WORKER_COUNT)
+
+	worldGenerator := newWorldGenerator()
+	worldGenerator.start(WORLD_GENERATOR_WORKER_COUNT)
 
 	for {
 		if len(l.chunks) != l.observerCache.RenderDistance*2+1 {
@@ -204,6 +206,8 @@ func (l *Level) GenerateAround() {
 			newObserverChunkCoords := LevelToChunkCoords(l.observerCache.Vec3)
 			if newObserverChunkCoords != observerChunkCoords {
 				// Observer changed chunks, cut our losses to regenerate around the new center
+				meshBuilder.movedChunk()
+				worldGenerator.clear()
 				break
 			}
 
@@ -212,16 +216,19 @@ func (l *Level) GenerateAround() {
 			pos := utils.IntVector2{X: xOffset + observerChunkCoords.X, Y: zOffset + observerChunkCoords.Y}
 			if c := l.getChunk(pos); c == nil || pos != c.coordinates {
 				if c == nil {
-					c = newChunk(generator, l.observer)
+					c = newChunk(meshBuilder, l.observer)
 				}
 
-				c.Mesh.Store(ChunkMesh{make([]uint32, 0), make([]uint32, 0)})
-				chanx.TrySend(c.MeshUpdates, struct{}{})
-				generateChunk(c, pos)
+				c.clearMesh()
+				c.setCoordinates(pos)
+				worldGenerator.enqueue(c)
 				l.setChunk(pos, c)
 			}
 		}
 	}
+
+	meshBuilder.stopWorkers()
+	worldGenerator.stopWorkers()
 }
 
 func LevelToChunkCoords(level mgl32.Vec3) utils.IntVector2 {

@@ -41,6 +41,17 @@ func (h *Heap[T, S]) Fix(item *Item[T, S]) {
 	h.siftDown(item)
 }
 
+func (h *Heap[T, S]) FixAll() {
+	oldValues := h.values
+	h.values = make([]*Item[T, S], 0, cap(oldValues))
+	for _, v := range oldValues {
+		v.score = h.score(v.value)
+		v.index = len(h.values)
+		h.values = append(h.values, v)
+		h.siftUp(v)
+	}
+}
+
 func (h *Heap[T, S]) Pop() T {
 	result := h.values[0]
 

@@ -29,7 +29,7 @@ type chunkSnapshot struct {
 // Using the exported members of Chunk is fully thread safe
 type Chunk struct {
 	mu            sync.Mutex
-	generator     *meshGenerator
+	meshBuilder   *meshBuilder
 	coordinates   utils.IntVector2
 	observer      *atomicx.Value[LevelObserver] // Coordinates of the block closest to the level observer in the chunk
 	observerCache utils.IntVector3
@@ -40,9 +40,9 @@ type Chunk struct {
 	MeshUpdates chan struct{}
 }
 
-func newChunk(generator *meshGenerator, observer *atomicx.Value[LevelObserver]) *Chunk {
+func newChunk(meshBuilder *meshBuilder, observer *atomicx.Value[LevelObserver]) *Chunk {
 	c := &Chunk{
-		generator:   generator,
+		meshBuilder: meshBuilder,
 		observer:    observer,
 		Mesh:        &atomicx.Value[ChunkMesh]{},
 		MeshUpdates: make(chan struct{}, 1),
@@ -85,13 +85,20 @@ func (c *chunkSnapshot) iter() iter.Seq2[utils.IntVector3, BlockId] {
 	}
 }
 
-func (c *Chunk) setContent(coordinates utils.IntVector2, blocks [CHUNK_WIDTH][CHUNK_HEIGHT][CHUNK_WIDTH]BlockId) {
+func (c *Chunk) setCoordinates(coordinates utils.IntVector2) {
 	c.mu.Lock()
 	c.coordinates = coordinates
+	c.mu.Unlock()
+
+	c.meshBuilder.enqueue(c)
+}
+
+func (c *Chunk) setBlocks(blocks [CHUNK_WIDTH][CHUNK_HEIGHT][CHUNK_WIDTH]BlockId) {
+	c.mu.Lock()
 	c.blocks = blocks
 	c.mu.Unlock()
 
-	c.generator.enqueue(c)
+	c.meshBuilder.enqueue(c)
 }
 
 func visibleOrDifferentHeightLevel(a, b BlockId) bool {
@@ -154,6 +161,11 @@ func (c *Chunk) generateMesh(level *Level) {
 	chanx.TrySend(c.MeshUpdates, struct{}{})
 }
 
+func (c *Chunk) clearMesh() {
+	c.Mesh.Store(ChunkMesh{make([]uint32, 0), make([]uint32, 0)})
+	chanx.TrySend(c.MeshUpdates, struct{}{})
+}
+
 func (c *Chunk) updateObserverCache() {
 	observer := c.observer.Load().Vec3
 
@@ -165,7 +177,7 @@ func (c *Chunk) updateObserverCache() {
 
 	if c.observerCache != newObserverCache {
 		c.observerCache = newObserverCache
-		c.generator.enqueue(c)
+		c.meshBuilder.enqueue(c) // TODO optimize to not rebuild meshes on Y change if not at a height with transparent blocks
 	}
 }
 
@@ -181,5 +193,5 @@ func (c *Chunk) setBlock(coordinates utils.IntVector3, value BlockId) {
 	c.blocks[coordinates.X][coordinates.Y][coordinates.Z] = value
 	c.mu.Unlock()
 
-	c.generator.enqueue(c)
+	c.meshBuilder.enqueue(c)
 }

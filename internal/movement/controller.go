@@ -40,9 +40,6 @@ func (c *Controller) Move(deltaTime float32, accelerationDirection mgl32.Vec3) b
 	if maxDisplacement := c.direction.Mul(c.maxVelocity * deltaTime); displacement.Len() > maxDisplacement.Len() {
 		displacement = maxDisplacement
 	}
-	if velocityVec.X() < 5 && velocityVec.Y() < 5 && velocityVec.Z() < 5 && velocityVec.X() > -5 && velocityVec.Y() > -5 && velocityVec.Z() > -5 {
-		displacement = mgl32.Vec3{0, 0, 0}
-	}
 	c.position = c.position.Add(displacement)
 
 	newVelocityVec := accelerationVec.Mul(deltaTime).Add(velocityVec)
