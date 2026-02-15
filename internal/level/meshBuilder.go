@@ -2,24 +2,21 @@ package level
 
 import (
 	"sync"
-	"time"
 
 	"github.com/vparent05/minecraft_go/internal/utils/chanx"
-	"github.com/vparent05/minecraft_go/internal/utils/debounce"
 	"github.com/vparent05/minecraft_go/internal/utils/structure"
 )
 
 const MESH_BUILDING_WORKER_COUNT = 4
 
 type meshBuilder struct {
-	mu             sync.Mutex
-	wg             sync.WaitGroup
-	stop           chan struct{}
-	new            sync.Cond
-	queue          *structure.Heap[*Chunk, int]
-	queueItems     map[*Chunk]*structure.Item[*Chunk, int]
-	level          *Level
-	fixAllDebounce *debounce.Debounce
+	mu         sync.Mutex
+	wg         sync.WaitGroup
+	stop       chan struct{}
+	new        sync.Cond
+	queue      *structure.Heap[*Chunk, int]
+	queueItems map[*Chunk]*structure.Item[*Chunk, int]
+	level      *Level
 }
 
 func newMeshBuilder(level *Level, renderDistance int) *meshBuilder {
@@ -41,9 +38,8 @@ func newMeshBuilder(level *Level, renderDistance int) *meshBuilder {
 				return b - a
 			},
 			(2*renderDistance+1)*(2*renderDistance+1)),
-		queueItems:     make(map[*Chunk]*structure.Item[*Chunk, int], (2*renderDistance+1)*(2*renderDistance+1)),
-		level:          level,
-		fixAllDebounce: debounce.NewDebounce(50 * time.Millisecond),
+		queueItems: make(map[*Chunk]*structure.Item[*Chunk, int], (2*renderDistance+1)*(2*renderDistance+1)),
+		level:      level,
 	}
 
 	m.new = *sync.NewCond(&m.mu)
@@ -52,11 +48,9 @@ func newMeshBuilder(level *Level, renderDistance int) *meshBuilder {
 }
 
 func (m *meshBuilder) movedChunk() {
-	m.fixAllDebounce.Do(func() {
-		m.mu.Lock()
-		m.queue.FixAll()
-		m.mu.Unlock()
-	})
+	m.mu.Lock()
+	m.queue.FixAll()
+	m.mu.Unlock()
 }
 
 func (m *meshBuilder) enqueue(c *Chunk) {
